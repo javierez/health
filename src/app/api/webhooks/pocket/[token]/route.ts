@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { ingestOne, sweep } from "~/server/pocket/ingest";
 
@@ -57,14 +57,12 @@ export async function POST(
     // An unreadable body is not fatal: fall through to the sweep.
   }
 
-  for (const path of ID_PATHS) {
-    const id = readPath(payload, path);
-    if (id) {
-      const res = await ingestOne(id);
-      return NextResponse.json({ success: res.ok, data: res });
-    }
-  }
-
-  const report = await sweep({ limit: 20 });
-  return NextResponse.json({ success: true, data: { fallback: "sweep", ...report } });
+  // Answer first, work after: a slow answer makes Pocket retry, and each
+  // retry would pay for the same classification again.
+  const id = ID_PATHS.map((path) => readPath(payload, path)).find(Boolean);
+  after(async () => {
+    if (id) await ingestOne(id);
+    else await sweep({ limit: 20 });
+  });
+  return NextResponse.json({ success: true, data: { id: id ?? null } });
 }

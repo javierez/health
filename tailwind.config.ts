@@ -50,6 +50,16 @@ const config: Config = {
       animation: {
         "fade-in": "fade-in 0.5s ease-out",
         "row-in": "row-in 0.35s ease-out both",
+        rise: "row-in 0.5s ease-out both",
+        // A ring that draws itself to where he is, a bar that grows from 0.
+        draw: "draw 0.8s ease-out both",
+        grow: "grow 0.5s ease-out both",
+        // A tick landing: a small overshoot, then still.
+        pop: "pop 0.35s ease-out both",
+        // A baked turn of a 3D object: a strip of 24 frames, played in steps.
+        strip: "strip 2.8s steps(24) infinite",
+        // An exercise's two poses, each held, crossfading: one rep every 2.4 s.
+        rep: "rep 2.4s ease-in-out infinite",
       },
       keyframes: {
         "fade-in": { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
@@ -57,6 +67,12 @@ const config: Config = {
           "0%": { transform: "translateY(8px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        // Starts at the full circle (`--len`), ends at the element's own offset.
+        draw: { "0%": { strokeDashoffset: "var(--len)" } },
+        grow: { "0%": { transform: "scaleY(0)" } },
+        pop: { "0%": { transform: "scale(0.6)" }, "60%": { transform: "scale(1.12)" }, "100%": { transform: "scale(1)" } },
+        strip: { "0%": { backgroundPositionX: "0" }, "100%": { backgroundPositionX: "calc(var(--w) * -24)" } },
+        rep: { "0%, 35%": { opacity: "0" }, "50%, 85%": { opacity: "1" }, "100%": { opacity: "0" } },
       },
     },
   },

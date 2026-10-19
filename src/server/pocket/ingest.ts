@@ -1,10 +1,11 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { localDay } from "~/lib/day";
 import { db } from "~/db";
-import { episodes, recordings } from "~/db/schema";
+import { episodes, facts, recordings } from "~/db/schema";
 import { env } from "~/env";
 import { extractEpisodes } from "~/server/classify/episodes";
+import { extractFacts, FACTS_VERSION, placeFact } from "~/server/classify/facts";
 import { triage } from "~/server/classify/triage";
 import {
   describePocketFailure,
@@ -12,7 +13,9 @@ import {
   listPocketRecordings,
   type PocketRecordingDetail,
 } from "./client";
+import { readTonesStored, untoned } from "~/server/pocket/tones";
 import { readSyncState, writeSyncState } from "~/server/queries/sync-state";
+import { learnMovesLater } from "~/server/training/learn";
 
 /**
  * The sweep: pull recordings from Pocket, store them raw, then classify what
@@ -37,7 +40,9 @@ export interface SweepReport {
   stored: number;
   classified: number;
   episodes: number;
-  failures: { recordingId: string; stage: "fetch" | "classify"; detail: string }[];
+  facts: number;
+  tones: number;
+  failures: { recordingId: string; stage: "fetch" | "classify" | "facts" | "tones"; detail: string }[];
 }
 
 function daysAgo(days: number): string {
@@ -122,6 +127,7 @@ export async function classifyStored(recordingId: string): Promise<
       oneLiner: e.oneLiner,
       topics: e.topics,
       people: e.people,
+      call: e.call,
       startSeconds: e.startSeconds,
       endSeconds: e.endSeconds,
       durationSeconds: e.durationSeconds,
@@ -166,9 +172,66 @@ export async function classifyStored(recordingId: string): Promise<
       .set({ isCurrent: false })
       .where(and(eq(episodes.recordingId, recordingId), eq(episodes.isCurrent, true)));
     await tx.insert(episodes).values(values);
+    // New episodes have no tone yet: the next sweep reads them.
+    await tx.update(recordings).set({ tonesVersion: null }).where(eq(recordings.id, recordingId));
   });
 
   return { ok: true, episodes: values.length };
+}
+
+/**
+ * Read one classified recording for meals, training and medical facts, and
+ * replace whatever an earlier pass left. A recording that triage binned as
+ * noise is marked read without a call: a pocket-dial has no lunch in it.
+ */
+export async function extractFactsStored(recordingId: string): Promise<
+  { ok: true; facts: number } | { ok: false; detail: string }
+> {
+  const [row] = await db.select().from(recordings).where(eq(recordings.id, recordingId)).limit(1);
+  if (!row?.recordedAt) return { ok: false, detail: "recording not stored or undated" };
+  const recordedAt = row.recordedAt;
+
+  const [real] = await db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .where(and(eq(episodes.recordingId, recordingId), eq(episodes.isCurrent, true), ne(episodes.category, "noise")))
+    .limit(1);
+
+  let values: (typeof facts.$inferInsert)[] = [];
+  if (real) {
+    const result = await extractFacts({
+      title: row.title,
+      turns: row.turns ?? [],
+      transcript: row.transcript,
+      summaryMarkdown: row.summaryMarkdown,
+      durationSeconds: row.durationSeconds,
+      recordedAt: recordedAt.toISOString(),
+    });
+    if (!result.ok) return { ok: false, detail: result.detail };
+    values = result.facts.map((f) => {
+      const at = placeFact(recordedAt, f);
+      return {
+        recordingId,
+        kind: f.kind,
+        at,
+        day: localDay(at),
+        summary: f.summary,
+        data: f.data,
+        evidence: f.evidence,
+        confidence: f.confidence,
+        model: result.model,
+        promptVersion: FACTS_VERSION,
+      };
+    });
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(facts).where(eq(facts.recordingId, recordingId));
+    if (values.length > 0) await tx.insert(facts).values(values);
+    await tx.update(recordings).set({ factsVersion: FACTS_VERSION }).where(eq(recordings.id, recordingId));
+  });
+  learnMovesLater(values);
+  return { ok: true, facts: values.length };
 }
 
 /**
@@ -216,12 +279,23 @@ export async function ingestOne(recordingId: string): Promise<
 
   await storeRecording(detail.data);
   const classified = await classifyStored(recordingId);
+  if (classified.ok) await extractFactsStored(recordingId);
   return { ok: true, classified: classified.ok };
 }
 
-/** The periodic sweep. Safe to run as often as you like — it is idempotent. */
-export async function sweep(opts: { since?: string; limit?: number } = {}): Promise<SweepReport> {
-  const report: SweepReport = { fetched: 0, stored: 0, classified: 0, episodes: 0, failures: [] };
+/**
+ * The periodic sweep. Safe to run as often as you like — it is idempotent.
+ *
+ * 🚨 Bounded by `budgetMs`, not by a count. After 39 days without a sync the
+ * backlog is hundreds of recordings, and a function that dies at 300 s halfway
+ * through a write never records how far it got. Stopping early on purpose
+ * leaves the rest for the next tick, newest first.
+ */
+export async function sweep(
+  opts: { since?: string; limit?: number; budgetMs?: number } = {},
+): Promise<SweepReport> {
+  const deadline = Date.now() + (opts.budgetMs ?? 200_000);
+  const report: SweepReport = { fetched: 0, stored: 0, classified: 0, episodes: 0, facts: 0, tones: 0, failures: [] };
 
   const state = await readSyncState("pocket");
   const since =
@@ -236,21 +310,40 @@ export async function sweep(opts: { since?: string; limit?: number } = {}): Prom
         )
       : daysAgo(30));
 
-  const list = await listPocketRecordings(env.POCKET_API_KEY, {
-    since,
-    limit: opts.limit ?? 100,
-  });
-  if (!list.ok) {
-    await writeSyncState("pocket", { lastError: describePocketFailure(list) });
-    report.failures.push({ recordingId: "-", stage: "fetch", detail: describePocketFailure(list) });
-    return report;
+  // Every page: after weeks without a sync there are more than 100.
+  const limit = opts.limit ?? 100;
+  const summaries: Extract<Awaited<ReturnType<typeof listPocketRecordings>>, { ok: true }>["data"] = [];
+  for (let page = 1; page <= 20; page += 1) {
+    const list = await listPocketRecordings(env.POCKET_API_KEY, { since, limit, page });
+    if (!list.ok) {
+      await writeSyncState("pocket", { lastError: describePocketFailure(list) });
+      report.failures.push({ recordingId: "-", stage: "fetch", detail: describePocketFailure(list) });
+      return report;
+    }
+    summaries.push(...list.data);
+    if (list.data.length < limit) break;
   }
 
-  report.fetched = list.data.length;
+  report.fetched = summaries.length;
 
-  for (const summary of list.data) {
+  // A completed recording already stored with its transcript does not change:
+  // re-reading three days of them every ten minutes is thousands of calls a day.
+  const ids = summaries.map((r) => r.id);
+  const have = new Set(
+    ids.length === 0
+      ? []
+      : (
+          await db
+            .select({ id: recordings.id })
+            .from(recordings)
+            .where(and(inArray(recordings.id, ids), sql`${recordings.transcript} IS NOT NULL`))
+        ).map((r) => r.id),
+  );
+
+  for (const summary of summaries) {
     // Only `completed` carries a transcript; the rest come back next sweep.
-    if (summary.state !== "completed") continue;
+    if (summary.state !== "completed" || have.has(summary.id)) continue;
+    if (Date.now() > deadline) break;
 
     const detail = await getPocketRecording(env.POCKET_API_KEY, summary.id);
     if (!detail.ok) {
@@ -275,9 +368,11 @@ export async function sweep(opts: { since?: string; limit?: number } = {}): Prom
       and(eq(episodes.recordingId, recordings.id), eq(episodes.isCurrent, true)),
     )
     .where(and(isNull(episodes.id), sql`${recordings.transcript} IS NOT NULL`))
-    .groupBy(recordings.id);
+    .groupBy(recordings.id, recordings.recordedAt)
+    .orderBy(desc(recordings.recordedAt));
 
   for (const { id } of pending) {
+    if (Date.now() > deadline) break;
     const res = await classifyStored(id);
     if (res.ok) {
       report.classified += 1;
@@ -287,9 +382,37 @@ export async function sweep(opts: { since?: string; limit?: number } = {}): Prom
     }
   }
 
+  // Third pass: classified recordings not yet read for facts, newest first —
+  // tonight's dinner matters to the bedtime alert, last month's does not.
+  const unread = await db
+    .select({ id: recordings.id })
+    .from(recordings)
+    .innerJoin(episodes, and(eq(episodes.recordingId, recordings.id), eq(episodes.isCurrent, true)))
+    .where(or(isNull(recordings.factsVersion), ne(recordings.factsVersion, FACTS_VERSION)))
+    .groupBy(recordings.id, recordings.recordedAt)
+    .orderBy(desc(recordings.recordedAt));
+
+  for (const { id } of unread) {
+    if (Date.now() > deadline) break;
+    const res = await extractFactsStored(id);
+    if (res.ok) report.facts += res.facts;
+    else report.failures.push({ recordingId: id, stage: "facts", detail: res.detail });
+  }
+
+  // Fourth pass: how each conversation went, newest first.
+  for (const id of await untoned()) {
+    if (Date.now() > deadline) break;
+    const res = await readTonesStored(id);
+    if (res.ok) report.tones += res.tones;
+    else report.failures.push({ recordingId: id, stage: "tones", detail: res.detail });
+  }
+
+  // The cursor only moves once everything up to now is in: a pass cut short
+  // by the budget starts from the same place next time.
+  const finished = Date.now() <= deadline;
   await writeSyncState("pocket", {
     lastSweptAt: new Date(),
-    cursorDate: new Date().toISOString().slice(0, 10),
+    ...(finished ? { cursorDate: new Date().toISOString().slice(0, 10) } : {}),
     lastError: null,
   });
 

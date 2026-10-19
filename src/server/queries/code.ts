@@ -1,4 +1,4 @@
-import { asc, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "~/db";
 import { codeRecords } from "~/db/schema";
@@ -32,7 +32,7 @@ export interface CodeDay {
   }[];
 }
 
-export async function listCodeDays(): Promise<CodeDay[]> {
+export async function listCodeDays(author?: string): Promise<CodeDay[]> {
   const rows = await db
     .select({
       day: codeRecords.day,
@@ -46,7 +46,7 @@ export async function listCodeDays(): Promise<CodeDay[]> {
       merged: codeRecords.merged,
     })
     .from(codeRecords)
-    .where(sql`${codeRecords.day} is not null`)
+    .where(and(sql`${codeRecords.day} is not null`, author ? eq(codeRecords.author, author) : undefined))
     .orderBy(asc(codeRecords.at));
 
   const byDay = new Map<string, CodeDay>();

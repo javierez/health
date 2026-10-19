@@ -1,26 +1,34 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
-import { sweep } from "~/server/pocket/ingest";
+import { env } from "~/env";
+import { syncEverything } from "~/server/sync-all";
 
-// A sweep fetches and classifies serially; 100 recordings will not fit in 60s.
+// A pass fetches, classifies and reads facts serially; it needs the full 300 s.
 export const maxDuration = 300;
 
 /**
- * Manual sync, and the cron target.
+ * The tick (pg_cron, every 10 min) and the daily Vercel cron. Pulls Pocket,
+ * WHOOP and GitHub, then lets the assistant decide whether to write.
  *
- * The button on the board calls this without a secret (same origin, one user).
- * A cron must send `Authorization: Bearer <SYNC_SECRET>`; when the header is
- * present it has to be right, so a wrong secret fails loudly instead of
- * quietly running anyway.
+ * Always behind a bearer: `SYNC_SECRET`, or `CRON_SECRET` from Vercel Cron.
+ * The board's button is a server action now, so nothing calls this without
+ * one — and an open sync endpoint is an open tap on the Anthropic bill.
+ *
+ * It answers at once and works in `after()`: pg_net gives up waiting after
+ * ten seconds, and a pass takes minutes.
  */
 export async function POST(request: Request) {
   const auth = request.headers.get("authorization");
-  if (auth && auth !== `Bearer ${process.env.SYNC_SECRET}`) {
+  const allowed = [env.SYNC_SECRET, env.CRON_SECRET].filter(Boolean).map((s) => `Bearer ${s}`);
+  if (!auth || !allowed.includes(auth)) {
     return NextResponse.json({ success: false, error: "unauthorized" }, { status: 401 });
   }
 
-  const report = await sweep();
-  return NextResponse.json({ success: true, data: report });
+  after(async () => {
+    const report = await syncEverything();
+    console.log("sync", JSON.stringify(report).slice(0, 2000));
+  });
+  return NextResponse.json({ success: true, data: { started: true } }, { status: 202 });
 }
 
 export const GET = POST;

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "~/db";
 import { oauthTokens } from "~/db/schema";
@@ -104,28 +104,59 @@ export async function exchangeCode(code: string): Promise<WhoopResult<null>> {
 const EXPIRY_MARGIN_MS = 60_000;
 
 async function accessToken(): Promise<WhoopResult<string>> {
+  const row = await readToken();
+  if (!row) return { ok: false, reason: "not connected — visit /api/whoop/oauth" };
+  if (row.expiresAt.getTime() - EXPIRY_MARGIN_MS > Date.now()) {
+    return { ok: true, data: row.accessToken };
+  }
+
+  // 🚨 One refresh at a time. The tick, a webhook and an open board can all
+  // sync at once, and refresh tokens rotate: the second refresh would send a
+  // token the first one already killed, and the grant is gone until someone
+  // re-authorises by hand. The lock serialises them; whoever waited reads the
+  // token the winner stored.
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('whoop-refresh'))`);
+    const fresh = await readToken();
+    if (!fresh) return { ok: false as const, reason: "not connected — visit /api/whoop/oauth" };
+    if (fresh.expiresAt.getTime() - EXPIRY_MARGIN_MS > Date.now()) {
+      return { ok: true as const, data: fresh.accessToken };
+    }
+    if (!fresh.refreshToken) {
+      return { ok: false as const, reason: "expired and no refresh token — reconnect with the offline scope" };
+    }
+    const res = await postToken({
+      grant_type: "refresh_token",
+      refresh_token: fresh.refreshToken,
+      scope: "offline",
+    });
+    if (!res.ok) return res;
+    await persist(res.data);
+    return { ok: true as const, data: res.data.access_token };
+  });
+}
+
+async function readToken() {
   const [row] = await db
     .select()
     .from(oauthTokens)
     .where(eq(oauthTokens.provider, "whoop"))
     .limit(1);
-  if (!row) return { ok: false, reason: "not connected — visit /api/whoop/oauth" };
+  return row ?? null;
+}
 
-  if (row.expiresAt.getTime() - EXPIRY_MARGIN_MS > Date.now()) {
-    return { ok: true, data: row.accessToken };
+/** A single object, not a collection: the profile, the body measurements. */
+export async function fetchOne<T>(path: string): Promise<WhoopResult<T>> {
+  const token = await accessToken();
+  if (!token.ok) return token;
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${token.data}` } });
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "network error" };
   }
-  if (!row.refreshToken) {
-    return { ok: false, reason: "expired and no refresh token — reconnect with the offline scope" };
-  }
-
-  const res = await postToken({
-    grant_type: "refresh_token",
-    refresh_token: row.refreshToken,
-    scope: "offline",
-  });
-  if (!res.ok) return res;
-  await persist(res.data);
-  return { ok: true, data: res.data.access_token };
+  if (!res.ok) return { ok: false, reason: `${path} ${res.status}: ${await res.text()}` };
+  return { ok: true, data: (await res.json()) as T };
 }
 
 export interface WhoopPage<T> {

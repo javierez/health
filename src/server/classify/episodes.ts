@@ -24,7 +24,7 @@ import type { PocketSpeakerTurn } from "~/server/pocket/client";
  * `is_current = false`, so two passes can be diffed instead of one silently
  * overwriting the other.
  */
-export const PROMPT_VERSION = "episodes-v4";
+export const PROMPT_VERSION = "episodes-v5";
 export const DEFAULT_MODEL = "claude-sonnet-5";
 
 /**
@@ -93,6 +93,24 @@ overlap, and together should cover the whole recording.
   anonymised as SPEAKER_00, so leave it empty rather than inventing names.
 - "confidence" is your honest probability the category is right, 0 to 1.
 
+## Calls
+
+One recording often holds SEVERAL phone or video calls back to back: he hangs
+up and dials the next one ("Oye Siri, llamar a…"), or someone calls back. Each
+call is counted, so:
+
+- A new call ALWAYS starts a new episode, even with the same person and the
+  same subject. The goodbye belongs to the call it ends.
+- "call" numbers the calls of the recording 1, 2, 3 in order. Every episode of
+  the same call carries the same number, even when the subject changes
+  mid-call (work, then the kids, then a joke: still one call).
+- Leave "call" out when the stretch is not a call: in the same room as the
+  people he talks to (a meeting, a visit, an office), alone, dictating, or
+  media. A notification read aloud by an assistant is not a call. Nor is
+  someone near him talking on their own phone.
+- In a slice of a long recording, number from 1 within the slice; a call
+  already under way when the slice starts is call 1.
+
 ## Criteria
 
 After the category, every episode gets a "kind" and a "counterpart" from the
@@ -144,6 +162,8 @@ const episodeSchema = z.object({
   subcategory: z.string().nullish(),
   confidence: z.coerce.number().min(0).max(1).catch(0.5).default(0.5),
   one_liner: z.string().nullish().default(""),
+  /** Off-schema is "not a call", not a lost recording. */
+  call: z.number().int().positive().nullish().catch(null),
   start_seconds: z.coerce.number().min(0),
   end_seconds: z.coerce.number().min(0),
   /**
@@ -181,6 +201,8 @@ export interface EpisodeOutput {
   subcategory: string | null;
   confidence: number;
   oneLiner: string;
+  /** Which call of the recording, numbered across slices. Null when not a call. */
+  call: number | null;
   startSeconds: number;
   endSeconds: number;
   durationSeconds: number;
@@ -230,6 +252,11 @@ const TOOL: Anthropic.Tool = {
             },
             confidence: { type: "number", minimum: 0, maximum: 1 },
             one_liner: { type: "string" },
+            call: {
+              type: "integer",
+              minimum: 1,
+              description: "The phone or video call this stretch belongs to, 1, 2, 3 in order. Omit when it is not a call.",
+            },
             start_seconds: { type: "number", description: "Offset where this episode starts." },
             end_seconds: { type: "number", description: "Offset where this episode ends." },
             topics: { type: "array", items: { type: "string" } },
@@ -253,7 +280,7 @@ function mmss(seconds: number | null): string {
  * gave no segments — the model then has no offsets and returns one episode,
  * which is the honest answer rather than an invented split.
  */
-function renderTranscript(turns: PocketSpeakerTurn[], flat: string | null): string {
+export function renderTranscript(turns: PocketSpeakerTurn[], flat: string | null): string {
   if (turns.length === 0) return flat ?? "";
   return turns.map((t) => `[${mmss(t.startSeconds)}] ${t.speaker}: ${t.text}`).join("\n");
 }
@@ -423,7 +450,7 @@ export async function extractEpisodes(
   const usable = requests.filter((r): r is NonNullable<typeof r> => r !== null);
   if (usable.length === 0) return { ok: false, reason: "empty" };
 
-  const raw: RawEpisode[] = [];
+  const slices: RawEpisode[][] = [];
   let inputTokens = 0;
   let outputTokens = 0;
 
@@ -437,13 +464,15 @@ export async function extractEpisodes(
      */
     if (!res.ok) {
       if (usable.length === 1) return res;
+      slices.push([]); // a hole: no call runs across it
       continue;
     }
-    raw.push(...res.episodes);
+    slices.push(res.episodes);
     inputTokens += res.inputTokens;
     outputTokens += res.outputTokens;
   }
 
+  const raw = joinCalls(slices);
   if (raw.length === 0) {
     return { ok: false, reason: "unexpected-response", detail: "no slice parsed" };
   }
@@ -458,6 +487,31 @@ export async function extractEpisodes(
       outputTokens,
     },
   };
+}
+
+/**
+ * Each slice of a long recording numbers its calls from 1. Renumbered for the
+ * whole recording: when the last stretch of one slice and the first of the
+ * next are both calls, the cut fell mid-call and it is the same call; any
+ * other call is the next number.
+ */
+export function joinCalls(slices: RawEpisode[][]): RawEpisode[] {
+  const out: RawEpisode[] = [];
+  let next = 0;
+  let tail: number | null | undefined; // the call the previous slice ended in
+  for (const slice of slices) {
+    const sorted = [...slice].sort((a, b) => a.start_seconds - b.start_seconds);
+    const ids = new Map<number, number>();
+    if (tail != null && sorted[0]?.call != null) ids.set(sorted[0].call, tail);
+    const joined = sorted.map((e) => {
+      if (e.call == null) return e;
+      if (!ids.has(e.call)) ids.set(e.call, ++next);
+      return { ...e, call: ids.get(e.call) };
+    });
+    out.push(...joined);
+    tail = joined.at(-1)?.call;
+  }
+  return out;
 }
 
 /**
@@ -518,6 +572,7 @@ export function normalise(
       subcategory: e.subcategory?.trim() ?? null,
       confidence: e.confidence,
       oneLiner: (e.one_liner ?? "").trim(),
+      call: e.call ?? null,
       startSeconds: start,
       endSeconds: end,
       durationSeconds: end - start,
@@ -556,6 +611,7 @@ function unattributed(start: number, end: number): EpisodeOutput {
     subcategory: "unattributed",
     confidence: 0,
     oneLiner: "Not described by the model — silence, background, or a skipped stretch.",
+    call: null,
     startSeconds: start,
     endSeconds: end,
     durationSeconds: end - start,

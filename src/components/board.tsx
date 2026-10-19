@@ -1,144 +1,76 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
-import { Loader2, RefreshCw } from "lucide-react";
+import { useState } from "react";
 
+import { DayCards } from "~/components/day-cards";
+import { MedicalTab } from "~/components/medical-tab";
 import { Button } from "~/components/ui/button";
-import { DayTimeline, type DayGroup } from "~/components/day-timeline";
-import { PeriodRollup, type Period } from "~/components/period-rollup";
-import { RecordingsView, type BoardRecording } from "~/components/recordings-view";
-import { ScenesView } from "~/components/scenes-view";
-import { formatSpan } from "~/lib/categories";
-import { cn } from "~/lib/utils";
-import type { Activity } from "~/server/queries/recordings";
-import type { WhoopDay } from "~/server/queries/whoop";
-import type { CodeDay } from "~/server/queries/code";
+import { Card } from "~/components/ui/card";
+import { NoResults } from "~/components/ui/no-results";
+import { WaPatternCard } from "~/components/wa-pattern-card";
+import { GROUPS, type GroupKey } from "~/lib/day-groups";
+import type { SaludData } from "~/server/queries/salud";
 
 /**
- * 🚨 "Recordings" is last on purpose. It is the source, not the subject: what
- * this app is for is what was DONE and for how long, and a file is only where
- * that happened to be captured.
+ * Day by day, inside «Datos»: a card a day, grouped, and chips to see only
+ * one thing across days. Nothing to fill in except the medical
+ * file: the rest is heard by the Pocket, measured by WHOOP, read from his
+ * WhatsApp or sent to the chat.
  */
-type View = Period | "recordings" | "scenes";
+type Filter = "all" | GroupKey;
+const FILTERS: { key: Filter; label: string }[] = [{ key: "all", label: "Todo" }, ...GROUPS];
 
-const VIEWS: { key: View; label: string }[] = [
-  { key: "day", label: "Cronología" },
-  { key: "week", label: "Semanas" },
-  { key: "month", label: "Meses" },
-  { key: "scenes", label: "Escenas" },
-  { key: "recordings", label: "Grabaciones" },
-];
+const EMPTY: Record<Exclude<Filter, "medical">, string> = {
+  all: "Aún no hay nada.",
+  sleep: "Ninguna noche de WHOOP.",
+  training: "Ningún entreno, ni en WHOOP ni en el chat.",
+  meals: "Ninguna comida. Mándale una foto al chat o dilo cerca del Pocket.",
+  work: "Nada de trabajo oído por el Pocket ni commits.",
+  life: "Nada oído por el Pocket fuera del trabajo.",
+  whatsapp: "Tu WhatsApp se lee una vez al día, de madrugada. Aún no ha llegado nada.",
+};
 
-export function Board({
-  recordings,
-  activities,
-  whoop,
-  code,
-  counts,
-  lastSweptAt,
-}: {
-  recordings: BoardRecording[];
-  activities: Activity[];
-  whoop: WhoopDay[];
-  code: CodeDay[];
-  counts: Record<string, number>;
-  lastSweptAt: string | null;
-}) {
-  const [view, setView] = useState<View>("day");
-  const [syncing, startSync] = useTransition();
+/** "Todo" is the last two weeks; one group alone goes back a month. */
+const ALL_DAYS = 14;
 
-  const groups = useMemo<DayGroup[]>(() => {
-    const byDay = new Map<string, Activity[]>();
-    for (const a of activities) {
-      const list = byDay.get(a.day) ?? [];
-      list.push(a);
-      byDay.set(a.day, list);
-    }
-    // WHOOP covers 267 days and the recorder 16, so a day with a night of
-    // sleep and no recording is still a day that happened. Union, not join.
-    const byWhoop = new Map(whoop.map((w) => [w.day, w]));
-    const byCode = new Map(code.map((c) => [c.day, c]));
-    const days = new Set([...byDay.keys(), ...byWhoop.keys(), ...byCode.keys()]);
-
-    return [...days]
-      .sort((a, b) => b.localeCompare(a))
-      .map((day) => ({
-        day,
-        // Clock order, not file order: two recordings that straddle lunch have
-        // to interleave or the rail lies about how the day ran.
-        activities: (byDay.get(day) ?? []).sort(
-          (x, y) => x.startsAt.getTime() - y.startsAt.getTime(),
-        ),
-        whoop: byWhoop.get(day) ?? null,
-        code: byCode.get(day) ?? null,
-      }));
-  }, [activities, whoop, code]);
-
-  const { tracked, trackedSeconds } = useMemo(() => {
-    const counted = activities.filter(
-      (a) => a.category !== "ambient" && a.category !== "other",
-    );
-    return {
-      tracked: counted.length,
-      trackedSeconds: counted.reduce((s, a) => s + a.durationSeconds, 0),
-    };
-  }, [activities]);
-
-  function sync() {
-    startSync(async () => {
-      await fetch("/api/sync", { method: "POST" });
-      // A sweep can add a dozen recordings and fifty episodes; a full reload is
-      // the honest way to show that, and one person opens this screen.
-      window.location.reload();
-    });
-  }
+export function DayBrowser({ data }: { data: SaludData }) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const days =
+    filter === "all" ? data.days.slice(0, ALL_DAYS) : data.days.filter((d) => d.groups.some((g) => g.key === filter));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Salud</h1>
-          <p className="mt-1 text-xs text-gray-500">
-            {tracked} actividad{tracked === 1 ? "" : "es"} · {formatSpan(trackedSeconds)} registrado
-            {lastSweptAt
-              ? ` · sincronizado ${formatDistanceToNow(new Date(lastSweptAt), { addSuffix: true, locale: es })}`
-              : null}
-          </p>
-        </div>
-        <Button size="pill" variant="outline" onClick={sync} disabled={syncing}>
-          {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-          {syncing ? "Sincronizando" : "Sincronizar Pocket"}
-        </Button>
-      </div>
-
-      <div className="flex w-full gap-1 overflow-x-auto rounded-2xl bg-gray-100 p-0.5">
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
+    <div className="space-y-3">
+      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+        {FILTERS.map((f) => (
+          <Button
+            key={f.key}
             type="button"
-            onClick={() => setView(v.key)}
-            className={cn(
-              "h-8 shrink-0 rounded-xl px-3 text-xs font-medium transition-colors",
-              view === v.key
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-900",
-            )}
+            size="toolbar"
+            variant={filter === f.key ? "default" : "outline"}
+            aria-pressed={filter === f.key}
+            onClick={() => setFilter(f.key)}
+            className="shrink-0"
           >
-            {v.label}
-          </button>
+            {f.label}
+          </Button>
         ))}
       </div>
 
-      {view === "recordings" ? (
-        <RecordingsView recordings={recordings} counts={counts} />
-      ) : view === "scenes" ? (
-        <ScenesView activities={activities} />
-      ) : view === "day" ? (
-        <DayTimeline groups={groups} />
+      {filter === "medical" ? (
+        <Card className="p-4 animate-fade-in motion-reduce:animate-none">
+          <MedicalTab entries={data.medical} heard={data.heard} />
+        </Card>
       ) : (
-        <PeriodRollup activities={activities} period={view} />
+        <>
+          {filter === "whatsapp" ? <WaPatternCard pattern={data.pattern} link /> : null}
+          {days.length === 0 ? (
+            <Card className="p-4">
+              <NoResults title="Nada todavía" message={EMPTY[filter]} />
+            </Card>
+          ) : (
+            <DayCards key={filter} days={days} only={filter === "all" ? null : filter} />
+          )}
+        </>
       )}
     </div>
   );

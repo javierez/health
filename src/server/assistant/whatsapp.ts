@@ -1,0 +1,119 @@
+import { db } from "~/db";
+import { chatMessages } from "~/db/schema";
+import { env } from "~/env";
+
+/**
+ * Through the 621 (Vesta's support line, WABA `1820772069343247`), by Meta's
+ * Cloud API directly. Nothing here imports Vesta: same number, separate code.
+ * What he writes to the 621 from `WHATSAPP_TO` Vesta forwards here instead of
+ * answering it, so the 621 is his health chat and everyone else's support.
+ *
+ * 🚨 The scheduled notices are always a template. A free-text message only
+ * arrives inside the 24 h after he last wrote, and Meta accepts it anyway and
+ * drops it later (131047). The template is MARKETING on purpose: the WABA is
+ * shared with the 684 and the 711, and a UTILITY that Meta re-files as
+ * MARKETING is a strike against all three. Free text is only for replies,
+ * when he has just written.
+ */
+export const TEMPLATE = { name: "salud_aviso_v1", language: "es" } as const;
+export const TEMPLATE_BODY =
+  "Aviso de tu asistente de salud: {{1}} Lo tienes todo en tu panel de Salud.";
+
+const GRAPH = "https://graph.facebook.com/v21.0";
+
+type Sent = { ok: true; id: string | null } | { ok: false; detail: string };
+
+export function whatsappConfigured(): boolean {
+  return Boolean(env.WHATSAPP_ACCESS_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID && env.WHATSAPP_TO);
+}
+
+async function post(payload: Record<string, unknown>): Promise<Sent> {
+  if (!whatsappConfigured()) return { ok: false, detail: "not-configured" };
+  let res: Response;
+  try {
+    res = await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
+    });
+  } catch (err) {
+    return { ok: false, detail: err instanceof Error ? err.message : "network error" };
+  }
+  const body = (await res.json().catch(() => null)) as {
+    messages?: { id?: string }[];
+    error?: { code?: number; message?: string };
+  } | null;
+  if (!res.ok) return { ok: false, detail: `${body?.error?.code ?? res.status}: ${body?.error?.message ?? ""}` };
+  return { ok: true, id: body?.messages?.[0]?.id ?? null };
+}
+
+/** Every message that goes out is also a line of the chat, sent or not. */
+async function logged(type: "template" | "text" | "audio", text: string, sent: Sent): Promise<Sent> {
+  await db.insert(chatMessages).values({
+    waId: sent.ok ? sent.id : null,
+    direction: "out",
+    type,
+    body: text,
+    status: sent.ok ? "sent" : "failed",
+    error: sent.ok ? null : sent.detail,
+  });
+  return sent;
+}
+
+/** A scheduled notice: the approved template, his text in `{{1}}`. */
+export async function sendWhatsApp(text: string): Promise<Sent> {
+  const sent = await post({
+    to: env.WHATSAPP_TO,
+    type: "template",
+    template: {
+      name: TEMPLATE.name,
+      language: { code: TEMPLATE.language },
+      components: [{ type: "body", parameters: [{ type: "text", text }] }],
+    },
+  });
+  return whatsappConfigured() ? logged("template", text, sent) : sent;
+}
+
+/** A reply in the chat. Only right after he wrote: see the note above. */
+export async function sendText(text: string): Promise<Sent> {
+  const sent = await post({ to: env.WHATSAPP_TO, type: "text", text: { body: text } });
+  return whatsappConfigured() ? logged("text", text, sent) : sent;
+}
+
+/**
+ * Blue ticks and "escribiendo…" while a video is being cut and read, which
+ * takes half a minute. Best effort: a failure here changes nothing.
+ */
+export async function markRead(messageId: string): Promise<void> {
+  await post({ status: "read", message_id: messageId, typing_indicator: { type: "text" } });
+}
+
+/**
+ * A reply as a voice note, when he sent one. Meta wants the audio uploaded
+ * first (Ogg/Opus, or it arrives as a file and not as a voice note) and the
+ * message pointing at its id. The text is what the chat keeps.
+ */
+export async function sendVoice(ogg: Buffer, text: string): Promise<Sent> {
+  if (!whatsappConfigured()) return { ok: false, detail: "not-configured" };
+  const form = new FormData();
+  form.append("messaging_product", "whatsapp");
+  form.append("type", "audio/ogg");
+  form.append("file", new Blob([new Uint8Array(ogg)], { type: "audio/ogg" }), "respuesta.ogg");
+  let id: string | undefined;
+  try {
+    const res = await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/media`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` },
+      body: form,
+    });
+    const body = (await res.json().catch(() => null)) as { id?: string; error?: { code?: number; message?: string } } | null;
+    if (!res.ok || !body?.id) return { ok: false, detail: `upload ${body?.error?.code ?? res.status}: ${body?.error?.message ?? ""}` };
+    id = body.id;
+  } catch (err) {
+    return { ok: false, detail: err instanceof Error ? err.message : "network error" };
+  }
+  return logged("audio", text, await post({ to: env.WHATSAPP_TO, type: "audio", audio: { id } }));
+}

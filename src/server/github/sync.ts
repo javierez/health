@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "~/db";
 import { codeRecords } from "~/db/schema";
@@ -227,11 +227,32 @@ export interface GithubSyncReport {
   errors: string[];
 }
 
-export async function syncGithub(opts: { since?: string } = {}): Promise<GithubSyncReport> {
+/**
+ * Gonzalo is the other half of Vesta: his commits are read the same way, so
+ * "lines a day between the two of us" is one sum. Each author keeps his own
+ * `since`, so adding him later backfills his history instead of starting at
+ * Javier's last day.
+ */
+export const TEAM = ["gonzalolopezgarcia"];
+
+export async function syncGithub(
+  opts: { since?: string; authors?: string[] } = {},
+): Promise<GithubSyncReport> {
   const login = env.GITHUB_LOGIN;
   if (!login) throw new Error("GITHUB_LOGIN missing");
+  const total: GithubSyncReport = { commits: 0, prs: 0, additions: 0, deletions: 0, errors: [] };
+  for (const author of opts.authors ?? [login, ...TEAM]) {
+    const r = await syncAuthor(author, opts.since ?? (await defaultSince(author)));
+    total.commits += r.commits;
+    total.prs += r.prs;
+    total.additions += r.additions;
+    total.deletions += r.deletions;
+    total.errors.push(...r.errors.map((e) => `${author}: ${e}`));
+  }
+  return total;
+}
 
-  const since = opts.since ?? (await defaultSince());
+async function syncAuthor(login: string, since: string): Promise<GithubSyncReport> {
   const errors: string[] = [];
 
   // — commits ————————————————————————————————————————————————
@@ -294,6 +315,7 @@ export async function syncGithub(opts: { since?: string } = {}): Promise<GithubS
             changedFiles,
             merged: null,
             url: `https://github.com/${c.repository.full_name}/commit/${c.sha}`,
+            author: login,
             raw: { search: c, files: files.length },
           })
           .onConflictDoUpdate({
@@ -345,6 +367,7 @@ export async function syncGithub(opts: { since?: string } = {}): Promise<GithubS
         changedFiles: prFiles,
         merged: p.pull_request?.merged_at != null,
         url: p.html_url,
+        author: login,
         raw: p,
       })
       .onConflictDoUpdate({
@@ -408,9 +431,10 @@ function iso(d: Date): string {
  * The day after the newest row we hold, so a re-run is cheap. `>=` rather than
  * `>` because the newest day is usually still in progress.
  */
-async function defaultSince(): Promise<string> {
+async function defaultSince(author: string): Promise<string> {
   const [row] = await db
     .select({ day: sql<string | null>`max(${codeRecords.day})` })
-    .from(codeRecords);
+    .from(codeRecords)
+    .where(eq(codeRecords.author, author));
   return row?.day ?? "2025-10-30";
 }

@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<script type="importmap">
+  { "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body style="margin:0;background:transparent">
+<canvas id="c"></canvas>
+<script type="module">
+// A studio: a room for the metal to reflect, a white key light, a fill from
+// behind and a contact shadow on an invisible floor.
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { OBJECTS, SPINS } from "/scripts/renders/objects.js";
+
+const SIZE = 384;
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), alpha: true, antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(SIZE, SIZE);
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+/** One shot of an object, turned `turn` radians about its upright axis. */
+function shoot(build, turn = 0) {
+    const scene = new THREE.Scene();
+    scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+    const key1 = new THREE.DirectionalLight(0xffffff, 2.1);
+    key1.position.set(1.6, 6, 4);
+    key1.castShadow = true;
+    key1.shadow.mapSize.set(1024, 1024);
+    key1.shadow.radius = 8;
+    Object.assign(key1.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2 });
+    scene.add(key1);
+    const back = new THREE.DirectionalLight(0xffffff, 1.1);
+    back.position.set(-4, 2, -3);
+    scene.add(back);
+
+    const obj = build();
+    const pivot = new THREE.Group();
+    obj.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    // Fit it: the same visual size for all, resting on the floor.
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = box.getSize(new THREE.Vector3());
+    const s = 1.7 / Math.max(size.x, size.y, size.z);
+    obj.scale.setScalar(s);
+    const b2 = new THREE.Box3().setFromObject(obj);
+    const c = b2.getCenter(new THREE.Vector3());
+    obj.position.sub(new THREE.Vector3(c.x, b2.min.y, c.z));
+    // Fitted once, then turned: the size does not breathe as it turns.
+    pivot.add(obj);
+    pivot.rotation.y = turn;
+    scene.add(pivot);
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.ShadowMaterial({ opacity: 0.22 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const h = b2.max.y - b2.min.y;
+    const cam = new THREE.PerspectiveCamera(18, 1, 0.1, 50);
+    cam.position.set(0, h / 2 + 2.2, 7.4);
+    cam.lookAt(0, h / 2 - 0.05, 0);
+    renderer.render(scene, cam);
+}
+
+window.bake = () => {
+  const out = {};
+  for (const [key, build] of Object.entries(OBJECTS)) {
+    shoot(build);
+    out[key] = renderer.domElement.toDataURL("image/webp", 0.92);
+  }
+  return out;
+};
+
+/** `n` frames of a slow sway, ±34°, side by side: a strip the page plays with CSS steps. */
+window.spin = (key, n) => {
+  const strip = document.createElement("canvas");
+  strip.width = SIZE * n;
+  strip.height = SIZE;
+  const ctx = strip.getContext("2d");
+  for (let i = 0; i < n; i++) {
+    shoot(OBJECTS[key], Math.sin((2 * Math.PI * i) / n) * 0.6);
+    ctx.drawImage(renderer.domElement, i * SIZE, 0);
+  }
+  return strip.toDataURL("image/webp", 0.9);
+};
+window.spins = SPINS;
+window.ready = true;
+</script>
+</body>
+</html>

@@ -118,6 +118,44 @@ check("the slices touch", long[1]!.start, long[0]!.end);
 check("the last slice reaches past the end", long[3]!.end > 9_132, true);
 check("no turns, no windows", planWindows({ ...asInput(0, 9_999), turns: [] }).length, 0);
 
+// Several calls in one recording: each is counted, so numbering must survive.
+import { joinCalls } from "./episodes";
+
+const onCall = (start: number, call?: number): RawEpisode => ({ ...ep(start, start + 60), call });
+const calls = (slices: RawEpisode[][]) => joinCalls(slices).map((e) => e.call ?? null);
+
+check("two calls back to back stay two", calls([[onCall(0, 1), onCall(60, 1), onCall(120, 2)]]), [1, 1, 2]);
+check("off-call stretches keep no number", calls([[onCall(0, 1), onCall(60), onCall(120, 2)]]), [1, null, 2]);
+check(
+  "a call cut by the slice boundary is one call",
+  calls([[onCall(0), onCall(60, 1)], [onCall(2700, 1), onCall(2760, 2)]]),
+  [null, 1, 1, 2],
+);
+check(
+  "a slice that starts off-call starts a new call",
+  calls([[onCall(0, 1)], [onCall(2700), onCall(2760, 1)]]),
+  [1, null, 2],
+);
+check("a failed slice breaks the call", calls([[onCall(0, 1)], [], [onCall(5400, 1)]]), [1, 2]);
+check(
+  "the number survives normalise, the filler has none",
+  normalise([onCall(0, 1), onCall(600, 2)], 660).map((e) => e.call),
+  [1, null, 2],
+);
+
+const callShapes = parseEpisodes({
+  episodes: [
+    { category: "business", confidence: 0.9, one_liner: "x", start_seconds: 0, end_seconds: 60, call: 2 },
+    { category: "business", confidence: 0.9, one_liner: "x", start_seconds: 60, end_seconds: 90, call: "dos" },
+    { category: "business", confidence: 0.9, one_liner: "x", start_seconds: 90, end_seconds: 120 },
+  ],
+});
+check(
+  "an off-schema call is no call, not a lost recording",
+  callShapes.ok && callShapes.data.map((e) => e.call ?? null),
+  [2, null, null],
+);
+
 console.log(`${passed} passed, ${failures.length} failed`);
 for (const f of failures) console.error(`  ✗ ${f}`);
 if (failures.length > 0) process.exitCode = 1;

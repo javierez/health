@@ -1,7 +1,7 @@
 import { db } from "~/db";
 import { whoopRecords, type WhoopKind } from "~/db/schema";
 import { localDay } from "~/lib/day";
-import { collect } from "./client";
+import { collect, fetchOne } from "./client";
 
 /**
  * Pulls the four WHOOP collections and mirrors them raw.
@@ -91,7 +91,7 @@ export async function syncWhoop(opts: { since?: string } = {}): Promise<WhoopSyn
   const params: Record<string, string> = opts.since
     ? { start: new Date(opts.since).toISOString() }
     : {};
-  const fetched: Record<WhoopKind, number> = { cycle: 0, sleep: 0, recovery: 0, workout: 0 };
+  const fetched: Record<WhoopKind, number> = { cycle: 0, sleep: 0, recovery: 0, workout: 0, profile: 0, body: 0 };
   const errors: string[] = [];
   const rows: Row[] = [];
 
@@ -126,6 +126,16 @@ export async function syncWhoop(opts: { since?: string } = {}): Promise<WhoopSyn
       rows.push(row("workout", w.id, w.start, w.end, w.score?.strain ?? null, w.sport_name ?? null, w));
     }
   } else errors.push(`workout: ${workouts.reason}`);
+
+  // The two single objects. Kept so nothing WHOOP holds about you is left
+  // behind when the subscription ends: height, weight, max heart rate.
+  for (const [kind, path] of [["profile", "/v2/user/profile/basic"], ["body", "/v2/user/measurement/body"]] as const) {
+    const one = await fetchOne<unknown>(path);
+    if (one.ok) {
+      fetched[kind] = 1;
+      rows.push(row(kind, "me", null, null, null, null, one.data));
+    } else errors.push(`${kind}: ${one.reason}`);
+  }
 
   // 🚨 WHOOP re-scores an activity minutes after it ends, so a row fetched
   // early holds `PENDING_SCORE` and a null score. Upsert, never insert-ignore.
