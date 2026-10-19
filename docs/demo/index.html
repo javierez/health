@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salud · guía completa</title>
+<style>
+  :root { --ink:#111827; --mute:#6b7280; --line:#e5e7eb; --bg:#f9fafb; --amber:#f59e0b; --amberbg:#fffbeb; --amberline:#fde68a; }
+  * { box-sizing:border-box }
+  body { margin:0; font:15px/1.55 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif; color:var(--ink); background:var(--bg) }
+  nav { position:fixed; top:0; left:0; bottom:0; width:230px; padding:28px 18px; border-right:1px solid var(--line); background:#fff; overflow:auto }
+  nav h1 { font-size:20px; margin:0 0 2px; letter-spacing:-.02em }
+  nav p { margin:0 0 18px; color:var(--mute); font-size:12px }
+  nav a { display:block; padding:5px 10px; border-radius:999px; color:var(--ink); text-decoration:none; font-size:13.5px }
+  nav a:hover { background:#f3f4f6 }
+  nav a span { color:var(--mute); font-variant-numeric:tabular-nums; margin-right:6px }
+  main { margin-left:230px; padding:40px 48px 120px; max-width:1180px }
+  section { margin:0 0 64px; animation:rise .5s both }
+  @keyframes rise { from { opacity:0; transform:translateY(8px) } }
+  h2 { font-size:24px; letter-spacing:-.02em; margin:0 0 4px }
+  h2 + .lead { color:var(--mute); margin:0 0 20px }
+  h3 { font-size:15px; margin:26px 0 8px }
+  .grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:28px; align-items:start }
+  .grid.even { grid-template-columns:1fr 1fr }
+  figure { margin:0 }
+  figure img { width:100%; display:block; border:1px solid var(--line); border-radius:14px; background:#fff }
+  figure a { display:block }
+  figcaption { font-size:12px; color:var(--mute); margin-top:6px }
+  ul { margin:0; padding-left:18px }
+  li { margin:3px 0 }
+  table { width:100%; border-collapse:collapse; font-size:14px; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden }
+  th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top }
+  th { font-weight:600; background:#f9fafb; font-size:12.5px; color:var(--mute) }
+  tr:last-child td { border-bottom:0 }
+  code { font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace; background:#f3f4f6; padding:1px 5px; border-radius:5px }
+  details { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-top:10px }
+  details summary { cursor:pointer; font-weight:500 }
+  details > *:not(summary) { margin-top:8px }
+  .tag { display:inline-block; font-size:11.5px; padding:1px 8px; border-radius:999px; background:#f3f4f6; color:var(--mute); margin-left:6px; vertical-align:2px }
+  .tag.amber { background:var(--amberbg); color:#92400e; border:1px solid var(--amberline) }
+  .note { background:var(--amberbg); border:1px solid var(--amberline); border-radius:12px; padding:10px 14px; font-size:14px; margin:12px 0 }
+  .steps { counter-reset:s; list-style:none; padding:0 }
+  .steps li { counter-increment:s; padding-left:30px; position:relative; margin:8px 0 }
+  .steps li::before { content:counter(s); position:absolute; left:0; top:1px; width:20px; height:20px; border-radius:999px; background:var(--ink); color:#fff; font-size:11.5px; display:grid; place-items:center }
+  .phone { width:340px; background:#efeae2; border-radius:28px; border:8px solid #111827; padding:14px 10px 18px; font-size:13.5px }
+  .phone .top { background:#075e54; color:#fff; margin:-14px -10px 12px; padding:12px 14px; border-radius:20px 20px 0 0; font-weight:600; font-size:14px }
+  .phone .top small { display:block; font-weight:400; opacity:.8; font-size:11.5px }
+  .b { background:#fff; border-radius:10px; padding:7px 10px 4px; margin:0 40px 8px 0; box-shadow:0 1px .5px rgba(0,0,0,.13); white-space:pre-wrap }
+  .b.me { background:#d9fdd3; margin:0 0 8px 40px }
+  .b time { display:block; text-align:right; font-size:10.5px; color:#667781 }
+  .day { text-align:center; margin:6px 0 10px }
+  .day span { background:#fff; border-radius:8px; padding:3px 10px; font-size:11.5px; color:#54656f }
+  .row { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start }
+  .shots { display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
+  .shots figure img { aspect-ratio:auto }
+  @media (max-width:900px) { nav { display:none } main { margin:0; padding:24px } .grid, .grid.even, .shots { grid-template-columns:1fr } }
+  .shots.two { grid-template-columns:repeat(2,1fr) }
+  .shots.four { grid-template-columns:repeat(4,1fr) }
+  .tall { max-height:560px; overflow:auto; border:1px solid var(--line); border-radius:14px }
+  .tall img { border:0; border-radius:0 }
+  .tag.ex { background:#f3f4f6; color:var(--ink); border:1px dashed #9ca3af }
+</style>
+
+</head>
+<body>
+<nav>
+  <h1>Salud</h1>
+  <p>Guía completa · 18 oct 2026 · 66 capturas</p>
+  <a href="#mapa"><span>0</span>How it fits together</a>
+  <a href="#entrar"><span>1</span>Entrar</a>
+  <a href="#chat"><span>2</span>Chat</a>
+  <a href="#panel"><span>3</span>Panel</a>
+  <a href="#urgente"><span>4</span>Lo urgente</a>
+  <a href="#hoy"><span>5</span>Hoy</a>
+  <a href="#entrenos"><span>6</span>Entrenos</a>
+  <a href="#semana"><span>7</span>Esta semana</a>
+  <a href="#comida"><span>8</span>Comida</a>
+  <a href="#productos"><span>9</span>Piel</a>
+  <a href="#bano"><span>10</span>Baño</a>
+  <a href="#bienmal"><span>11</span>Lo que te hace bien y mal</a>
+  <a href="#datos"><span>12</span>Datos</a>
+  <a href="#movil"><span>13</span>Móvil</a>
+  <a href="#whatsapp"><span>14</span>WhatsApp 621</a>
+  <a href="#solo"><span>15</span>Lo que va solo</a>
+  <a href="#estado"><span>16</span>Estado</a>
+</nav>
+<main>
+
+<section id="mapa">
+  <h2>How it fits together</h2>
+  <p class="lead">Two screens and a WhatsApp number. You talk; it notes everything down and nudges you.</p>
+  <table>
+    <tr><th>Where</th><th>What you do there</th><th>URL</th></tr>
+    <tr><td><b>Login</b></td><td>Email and password, like Vesta. Forgot it: a code by SMS.</td><td><code>/login</code></td></tr>
+    <tr><td><b>Chat</b></td><td>Talk, send a voice note, a photo or a video. The agent notes it all down.</td><td><code>/</code></td></tr>
+    <tr><td><b>Panel</b></td><td>Only the priorities, title only. Details open on click. Every number behind «Datos».</td><td><code>/?ver=panel</code></td></tr>
+    <tr><td><b>Cómo te afecta</b></td><td>What does you good and harm, from your own nights.</td><td><code>/?ver=efectos</code></td></tr>
+    <tr><td><b>Entrenos</b></td><td>The body this week, how much you lift, every session.</td><td><code>/?ver=entrenos</code></td></tr>
+    <tr><td><b>WhatsApp</b></td><td>Morning note, bedtime alert, reminders. You can answer it like the chat.</td><td>+34 621 33 93 27</td></tr>
+    <tr><td><b>Background</b></td><td>Nothing to do. WHOOP, Pocket, GitHub and your WhatsApp come in by themselves.</td><td>every 10 min</td></tr>
+  </table>
+  <p class="note">Every screenshot is the real app on <code>localhost:3100</code>, logged in, with the local data, on 18-oct after the redesign. Nothing was sent to the chat but two test photos of a yogurt (one real turn, for «Comida») three toilet messages (for «Baño») and eight for «Lo que apuntas». Three things are marked: the test products in «Piel» and «Comida» (supplements) and the test gym entries in «Entrenos» and the two yogurts in «Comida» and the times in «Baño» <span class="tag ex">prueba</span>, and the WhatsApp phone in «WhatsApp 621» (a <b>mockup</b> drawn with real texts).</p>
+</section>
+
+<section id="entrar">
+  <h2>1 · Entrar</h2>
+  <p class="lead">Same login as Vesta: better-auth, email and password, 7-day session. Since 18-oct, also «¿Olvidaste tu contraseña?» with a code by SMS.</p>
+  <div class="shots "><figure><a href="shots/01-login.png"><img src="shots/01-login.png" alt="" loading="lazy"></a><figcaption>Any URL without a session lands here</figcaption></figure><figure><a href="shots/02-login-error.png"><img src="shots/02-login-error.png" alt="" loading="lazy"></a><figcaption>Wrong password: «Email o contraseña incorrectos»</figcaption></figure><figure><a href="shots/03-login-relleno.png"><img src="shots/03-login-relleno.png" alt="" loading="lazy"></a><figcaption>Filled in; the eye shows the password</figcaption></figure></div>
+  <h3>¿Olvidaste tu contraseña?</h3>
+  <ol class="steps">
+    <li>On the login, «¿Olvidaste tu contraseña?» → your email → «Enviar código SMS».</li>
+    <li>An SMS reaches your phone (the 636): «Tu código de verificación de Salud es: 482913. Válido por 5 minutos.»</li>
+    <li>Type the 6 numbers and the new password → back to the login with «Contraseña cambiada».</li>
+  </ol>
+  <div class="shots four"><figure><a href="shots/04-recuperar.png"><img src="shots/04-recuperar.png" alt="" loading="lazy"></a><figcaption>Your email, then «Enviar código SMS»</figcaption></figure><figure><a href="shots/05-codigo-incorrecto.png"><img src="shots/05-codigo-incorrecto.png" alt="" loading="lazy"></a><figcaption>A wrong code: «Te quedan 4 intentos»</figcaption></figure><figure><a href="shots/06-codigo.png"><img src="shots/06-codigo.png" alt="" loading="lazy"></a><figcaption>A new password without a capital: «Falta una mayúscula»</figcaption></figure><figure><a href="shots/07-cambiada.png"><img src="shots/07-cambiada.png" alt="" loading="lazy"></a><figcaption>Done: «Contraseña cambiada. Entra con la nueva.»</figcaption></figure></div>
+  <table style="margin-top:14px">
+    <tr><th>Like Vesta</th><th>Better than Vesta</th></tr>
+    <tr><td>
+      <ul>
+        <li>better-auth 1.3.4, same version</li>
+        <li>7-day session, 5-min encrypted cookie cache; 5 tries a minute</li>
+        <li>20 s timeout so the button never hangs</li>
+        <li>Reset by a 6-digit SMS code, stored hashed, valid 5 min, used once; asking again kills the old one</li>
+        <li>Same answer whether the email is yours or not</li>
+        <li>New password: 8+, uppercase, lowercase and a number (also in «Cuenta»)</li>
+      </ul>
+    </td><td>
+      <ul>
+        <li>A code dies after 5 wrong tries (Vesta: unlimited)</li>
+        <li>A new password signs out every device (Vesta: sessions stay)</li>
+        <li>Send limits live in the database: 3 codes per 15 min to your phone, 5 per IP</li>
+        <li>«Contraseña cambiada» shows on the login (Vesta drops it)</li>
+      </ul>
+    </td></tr>
+  </table>
+  <details><summary>What is different, on purpose</summary>
+    <ul>
+      <li>No «Regístrate»: one user only, created by <code>scripts/crear-usuario.ts</code>. Google only lets in an email that already exists.</li>
+      <li>No SMS code at every login (Vesta's optional 2FA can be skipped anyway: it runs after the session cookie is set).</li>
+      <li>You give your email, not your phone: the code always goes to the one number on file (<code>WHATSAPP_TO</code>).</li>
+      <li>After login you go back to the page you asked for (<code>?callbackUrl=</code>).</li>
+    </ul>
+  </details>
+  <details><summary>What stays open without a session</summary>
+    <ul>
+      <li><code>/login</code> (with its two reset steps) and <code>/api/auth/*</code> (better-auth itself).</li>
+      <li><code>/api/webhooks/*</code>: Pocket, WHOOP and WhatsApp each carry their own secret.</li>
+      <li><code>/api/sync</code>: checks its own bearer.</li>
+      <li>Everything else, images included: redirect to <code>/login</code>. An <code>/api/</code> route answers 401. Checked 18-oct: an action of the panel posted to <code>/login</code> without a session does not run.</li>
+    </ul>
+  </details>
+</section>
+
+
+<section id="chat">
+  <h2>2 · Chat</h2>
+  <p class="lead">The main screen. Whatever you'd tell a friend who tracks your health.</p>
+  <div class="grid">
+    <figure><a href="shots/70-chat.png"><img src="shots/70-chat.png" alt="" loading="lazy"></a><figcaption>Today's conversation</figcaption></figure>
+    <div>
+      <h3>Three ways in</h3>
+      <ul>
+        <li><b>Text</b>: «Escribe o toca el micro».</li>
+        <li><b>Voice</b>: the mic. It's transcribed and answered like text.</li>
+        <li><b>Photo or video</b>: the camera. A plate, the scale, the pill, the book, a cream. Up to 6 photos at once; on a computer, also paste (⌘V) or drag them in.</li>
+      </ul>
+      <h3>What you see happen</h3>
+      <ul>
+        <li>One short bubble per reply, with the count riding on it: «Apuntado, sentadilla 4x6 a 100. Gimnasio: 3 de 4.»</li>
+        <li>A photo of a cream or a supplement: it reads the label, saves it (creams in «Piel», supplements in «Comida») and looks up its sheet on the web. Food or a drink, even packaged, is a meal.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="shots "><figure><a href="shots/72-chat-arriba.png"><img src="shots/72-chat-arriba.png" alt="" loading="lazy"></a><figcaption>Scrolled to the start of the day</figcaption></figure><figure><a href="shots/73-chat-escribiendo.png"><img src="shots/73-chat-escribiendo.png" alt="" loading="lazy"></a><figcaption>Typing a question (not sent)</figcaption></figure><figure><a href="shots/74-chat-barra.png"><img src="shots/74-chat-barra.png" alt="" loading="lazy"></a><figcaption>The bar: text, camera, send</figcaption></figure></div>
+      <h3>What the agent can do (its 9 tools)</h3>
+  <table>
+    <tr><th>Tool</th><th>What it does</th><th>Say something like</th></tr>
+    <tr><td><code>apuntar</code></td><td>Notes meals food by food, training, weight, medical things, each time you go to the toilet, and anything else in your own categories with its figure; «lo de siempre» copies a past meal</td><td>«He cenado lentejas» · photo of the plate and its label · «otro igual» · «acabo de mear, me escuece» · «me duele la cabeza, un 6»</td></tr>
+    <tr><td><code>ficha</code></td><td>Adds to your medical history (with topic) or archives an entry</td><td>«Me han dado cita para la PAAF el 22»</td></tr>
+    <tr><td><code>compromisos</code></td><td>Creates, changes or removes commitments; ticks a habit just done</td><td>«Quiero ir 4 días al gimnasio»</td></tr>
+    <tr><td><code>producto</code> <span class="tag">new</span></td><td>Saves a cream (into «Piel») or a supplement (into «Comida») from its photo, ticks it as used today, or retires it. Food and drinks are meals</td><td>photo of the creatine · «ya no uso el retinol»</td></tr>
+    <tr><td><code>recordar</code></td><td>Writes to you on WhatsApp at a time; cancels reminders</td><td>«Recuérdame a las 23 el magnesio»</td></tr>
+    <tr><td><code>marcar</code></td><td>Ticks or unticks a row of today's list</td><td>«Ya he hecho lo de las pantallas»</td></tr>
+    <tr><td><code>buscar</code></td><td>Searches everything: notes, sleep, workouts, history, recordings, chat, code, your WhatsApp (with each chat's topic)</td><td>«¿Cuándo fue el TAC?»</td></tr>
+    <tr><td><code>organizar</code> <span class="tag">new</span></td><td>Moves a thing to another category, renames or merges things and categories; past entries move with them</td><td>«pon la sauna en Descanso» · «cambia Descanso por Recuperación»</td></tr>
+    <tr><td><code>borrar_apuntes</code></td><td>Deletes wrong notes</td><td>«Eso no lo comí yo, bórralo»</td></tr>
+    <tr><td><code>sincronizar</code></td><td>Pulls WHOOP, Pocket and GitHub right now (takes minutes)</td><td>«Trae lo de WHOOP ya»</td></tr>
+  </table>
+  <details><summary>What it knows before answering</summary>
+    <ul>
+      <li>Last nights (sleep, need, recovery), today's list, commitments and streaks.</li>
+      <li>The full medical history, «pending» first.</li>
+      <li>What you've eaten today against your protein and fibre target, and the meals you repeat («lo de siempre»).</li>
+      <li>Your creams and supplements, and the evidence behind «Haz» and «Evita» and behind the creams, so its advice cites the same sources as the panel.</li>
+    </ul>
+  </details>
+
+</section>
+
+<section id="panel">
+  <h2>3 · Panel</h2>
+  <p class="lead">Calm by design: only the priorities, nothing moves on hover, details open on click.</p>
+  <figure><a href="shots/10-panel.png"><img src="shots/10-panel.png" alt="" loading="lazy"></a><figcaption>Salud · Domingo, 18 de octubre</figcaption></figure>
+  <div class="grid" style="margin-top:16px">
+    <div>
+      <figure><a href="shots/12-cabecera.png"><img src="shots/12-cabecera.png" alt="" loading="lazy"></a><figcaption>Top right: Hablar · Datos · Chat · Cuenta</figcaption></figure>
+      <table style="margin-top:14px">
+        <tr><th>Button</th><th>What it does</th></tr>
+        <tr><td><b>Hablar</b></td><td>Tap, say it, tap again: «he hecho yoga 30 minutos». Same agent as the chat; the reply plays out loud and the panel refreshes.</td></tr>
+        <tr><td><b>Datos</b></td><td>Every number: Evolución and Día a día (section 9).</td></tr>
+        <tr><td><b>Chat</b></td><td>Back to the chat.</td></tr>
+        <tr><td><b>Cuenta</b> <span class="tag">new</span></td><td>Your email, «Cambiar contraseña» (signs out the other devices) and «Cerrar sesión».</td></tr>
+      </table>
+    </div>
+    <figure><a href="shots/13-cuenta.png"><img src="shots/13-cuenta.png" alt="" loading="lazy"></a><figcaption>«Cuenta»</figcaption></figure>
+  </div>
+  <table style="margin-top:14px">
+    <tr><th>Block</th><th>What it shows</th><th>Click opens</th></tr>
+    <tr><td><span class="tag amber">Lo urgente</span></td><td>Medical items still to do</td><td>The item, with «Llamar»; «Historial médico»</td></tr>
+    <tr><td><b>Hoy</b></td><td>What's left today, then «Haz» and «Evita»</td><td>Why each row, how it's done, its study</td></tr>
+    <tr><td><b>Entrenos</b> <span class="tag">new</span></td><td>The body this week and your latest lifts</td><td>An exercise set by set; «Ver todo» → <code>?ver=entrenos</code></td></tr>
+    <tr><td><b>Esta semana</b></td><td>One line per commitment: name, count, 7 dots</td><td>The week of that commitment</td></tr>
+    <tr><td><b>Comida</b> <span class="tag">new</span></td><td>Today's kcal; protein and fibre against your target; each meal with your photo; your supplements; the week's average</td><td>A meal: your photos, then food by food with grams and every nutrient</td></tr>
+    <tr><td><b>Piel</b> <span class="tag">new</span></td><td>Your creams, each with its 3D icon. Nothing you eat, drink or take</td><td>Its sheet from the web, «Lo he usado hoy», the last 14 days</td></tr>
+    <tr><td><b>Lo que te hace bien y mal</b> <span class="tag">new</span></td><td>From your own nights: good on the left, bad on the right</td><td>The numbers behind it; «Ver todo» → <code>?ver=efectos</code></td></tr>
+  </table>
+  <h3>The whole panel</h3>
+  <figure><a href="shots/11-panel-entero.png"><img src="shots/11-panel-entero.png" alt="" loading="lazy"></a><figcaption></figcaption></figure>
+</section>
+
+<section id="urgente">
+  <h2>4 · Lo urgente</h2>
+  <p class="lead">At the top whenever your medical history has something pending. Amber is the only colour on the page.</p>
+  <figure><a href="shots/20-urgente.png"><img src="shots/20-urgente.png" alt="" loading="lazy"></a><figcaption>PAAF (with «Llamar») and PET-TAC, both pending</figcaption></figure>
+  <div class="grid" style="margin-top:16px">
+    <figure><a href="shots/21-urgente-paaf.png"><img src="shots/21-urgente-paaf.png" alt="" loading="lazy"></a><figcaption>Click an item → its window, with «Llamar al 900 200 008»</figcaption></figure>
+    <div>
+      <figure><a href="shots/22-urgente-paaf-cerca.png"><img src="shots/22-urgente-paaf-cerca.png" alt="" loading="lazy"></a><figcaption>Close-up</figcaption></figure>
+      <div style="margin-top:14px"><figure><a href="shots/23-urgente-pettac.png"><img src="shots/23-urgente-pettac.png" alt="" loading="lazy"></a><figcaption>PET-TAC: no phone in the text, so no button</figcaption></figure></div>
+      <ul style="margin-top:12px">
+        <li>Tick it on the right when it's done.</li>
+        <li>«Llamar» only appears if the text has a phone number.</li>
+        <li>Easier: tell the chat «ya tengo cita para la PAAF el 22».</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Historial médico (button on the right)</h3>
+  <div class="shots two"><figure><a href="shots/24-historial.png"><img src="shots/24-historial.png" alt="" loading="lazy"></a><figcaption>Pendiente on top, then Cuello</figcaption></figure><figure><a href="shots/25-historial-orina.png"><img src="shots/25-historial-orina.png" alt="" loading="lazy"></a><figcaption>Orina</figcaption></figure><figure><a href="shots/26-historial-antecedentes.png"><img src="shots/26-historial-antecedentes.png" alt="" loading="lazy"></a><figcaption>Dientes y maxilofacial, Antecedentes, «Añadir a mano»</figcaption></figure><figure><a href="shots/27-historial-tac.png"><img src="shots/27-historial-tac.png" alt="" loading="lazy"></a><figcaption>An entry opened: the TAC report in plain words</figcaption></figure><figure><a href="shots/28-historial-anadir.png"><img src="shots/28-historial-anadir.png" alt="" loading="lazy"></a><figcaption>«Añadir a mano»: type, date, topic, title, details</figcaption></figure></div>
+</section>
+
+<section id="hoy">
+  <h2>5 · Hoy</h2>
+  <p class="lead">What's left today, title only; then what to do («Haz») and what to leave («Evita»), each with its study one click away.</p>
+  <div class="grid">
+    <figure><a href="shots/30-hoy.png"><img src="shots/30-hoy.png" alt="" loading="lazy"></a><figcaption>0/4: Gimnasio 3 de 4, Pastilla, Leer 20 min, A la cama; then Haz</figcaption></figure>
+    <div>
+      <table>
+        <tr><th>Circle</th><th>Done when</th></tr>
+        <tr><td>📷</td><td>You send a photo or video (pill, book, food)</td></tr>
+        <tr><td>○</td><td>You tap it, or tell the chat</td></tr>
+        <tr><td>dashed</td><td>It ticks itself from WHOOP (bedtime, training)</td></tr>
+        <tr><td>none</td><td>«Evita» rows: done by not doing them</td></tr>
+      </table>
+      <ul style="margin-top:12px">
+        <li>The count (0/4) is only your list, not «Haz» and «Evita».</li>
+        <li>What's done folds into one line: «Hecho: …».</li>
+      </ul>
+    </div>
+  </div>
+  <div class="shots "><figure><a href="shots/31-hoy-por-que.png"><img src="shots/31-hoy-por-que.png" alt="" loading="lazy"></a><figcaption>Click a row: the why in one line, how it's ticked</figcaption></figure><figure><a href="shots/32-hoy-pastilla.png"><img src="shots/32-hoy-pastilla.png" alt="" loading="lazy"></a><figcaption>Pastilla: «Se marca con una foto o un vídeo al chat»</figcaption></figure><figure><a href="shots/33-hoy-haz.png"><img src="shots/33-hoy-haz.png" alt="" loading="lazy"></a><figcaption>A «Haz» row: the tip and its source</figcaption></figure></div>
+    <details><summary>The rules behind «Haz» and «Evita» (plain code over your data, no model)</summary>
+    <table>
+      <tr><th></th><th>Shows when</th><th>Row</th><th>Source</th></tr>
+      <tr><td>Evita</td><td>A coffee already later than 6 h before bed</td><td>«Otro café hoy»</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3805807/">Drake, JCSM 2013</a></td></tr>
+      <tr><td>Evita</td><td>You drink coffee and it's still before that cut-off</td><td>«Café después de las 17:05»</td><td>Drake 2013</td></tr>
+      <tr><td>Evita</td><td>Alcohol in the last 3 days</td><td>«Alcohol hoy»</td><td><a href="https://doi.org/10.1111/acer.12006">Ebrahim, ACER 2013</a></td></tr>
+      <tr><td>Evita</td><td>Friday or Saturday, when your own weekend nights clearly cost you</td><td>«Alcohol esta noche»</td><td>Ebrahim 2013</td></tr>
+      <tr><td>Haz</td><td>Under 7 h on average</td><td>«Duerme 7 h o más»</td><td><a href="https://aasm.org/resources/pdf/adultsleepdurationconsensus.pdf">AASM/SRS 2015</a></td></tr>
+      <tr><td>Haz</td><td>Bedtime varies more than ±45 min</td><td>«La misma hora de cama cada noche, también el finde»</td><td><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10782489/">Windred, Sleep 2024</a></td></tr>
+      <tr><td>Haz</td><td>After 16:00, under 75 % of 1.6 g/kg protein</td><td>«Te faltan ~40 g de proteína hoy»</td><td><a href="https://pubmed.ncbi.nlm.nih.gov/28698222/">Morton, BJSM 2018</a></td></tr>
+      <tr><td>Haz</td><td>From Thursday, &lt;2 strength sessions (no gym commitment)</td><td>«Una sesión de fuerza más antes del domingo»</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7719906/">WHO 2020</a></td></tr>
+      <tr><td>Haz</td><td>From Friday, &lt;150 min cardio (no cardio commitment)</td><td>«40 min de cardio antes del domingo»</td><td>WHO 2020</td></tr>
+      <tr><td>Haz</td><td>Always, as the last option</td><td>«Legumbre, verdura o integral en cada comida»</td><td><a href="https://doi.org/10.1016/S0140-6736(18)31809-9">Reynolds, Lancet 2019</a></td></tr>
+    </table>
+    <p>At most 3 a day, most pressing first.</p>
+  </details>
+
+</section>
+
+<section id="entrenos">
+  <h2>6 · Entrenos <span class="tag">new</span></h2>
+  <p class="lead">What you train, from what you tell the chat («press banca 80 kg 3x8»). On the panel under «Hoy»; the rest in «Ver todo».</p>
+  <div class="grid">
+    <figure><a href="shots/34-entrenos.png"><img src="shots/34-entrenos.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> The card: the body this week and your latest lifts, with what went up (+7,5 kg)</figcaption></figure>
+    <figure><a href="shots/36-entrenos-ejercicio.png"><img src="shots/36-entrenos-ejercicio.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> Tap an exercise: the muscles it works and every set, day by day</figcaption></figure>
+  </div>
+  <figure style="margin-top:16px"><a href="shots/35-entrenos-vista.png"><img src="shots/35-entrenos-vista.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> «Ver todo» → <code>?ver=entrenos</code>: zones of the last 7 days, «Cuánto levantas», «Sesiones»</figcaption></figure>
+  <ul style="margin-top:12px">
+    <li>A zone lights up from the exercise's name («Press banca», «Sentadilla», «Dominadas»…); darker = more days.</li>
+    <li>Sets at different weights are one line each: «80 kg ×8 · 85 kg ×6 · 87,5 kg ×4».</li>
+    <li>The gym entries shown were typed into the local chat while testing.</li>
+  </ul>
+</section>
+
+<section id="semana">
+  <h2>7 · Esta semana</h2>
+  <p class="lead">Your commitments, Monday to Sunday. Dark dot = done; amber ring = due today.</p>
+  <div class="grid">
+    <figure><a href="shots/40-semana.png"><img src="shots/40-semana.png" alt="" loading="lazy"></a><figcaption>12 oct al 18 oct: Gimnasio 3 de 4 · Correr o bici 35,7 de 40 km · Pastilla · Leer · Dormir</figcaption></figure>
+    <div>
+      <table>
+        <tr><th>Type</th><th>Example</th><th>Counted by</th></tr>
+        <tr><td>Weekly count</td><td>Gimnasio 4 días</td><td>WHOOP workouts + what you say</td></tr>
+        <tr><td>Weekly distance</td><td>Correr o bici 40 km</td><td>WHOOP distance</td></tr>
+        <tr><td>Daily habit, photo</td><td>Pastilla · Leer 20 min</td><td>Your photo or video that day; streak</td></tr>
+        <tr><td>Limit</td><td>Dormir hasta la 01:00</td><td>WHOOP bedtime</td></tr>
+      </table>
+      <ul style="margin-top:12px">
+        <li>Create, change or remove by talking: «Quiero leer 20 minutos cada día».</li>
+        <li>Something new gets its own icon, drawn once in the same style (~16 s, ~€0.05, after the reply). Until then, the generic one.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="shots four"><figure><a href="shots/41-semana-gimnasio.png"><img src="shots/41-semana-gimnasio.png" alt="" loading="lazy"></a><figcaption>Gimnasio</figcaption></figure><figure><a href="shots/42-semana-correr.png"><img src="shots/42-semana-correr.png" alt="" loading="lazy"></a><figcaption>Correr o bici</figcaption></figure><figure><a href="shots/43-semana-pastilla.png"><img src="shots/43-semana-pastilla.png" alt="" loading="lazy"></a><figcaption>Pastilla: photo days, streak</figcaption></figure><figure><a href="shots/44-semana-dormir.png"><img src="shots/44-semana-dormir.png" alt="" loading="lazy"></a><figcaption>Dormir</figcaption></figure></div>
+</section>
+
+<section id="comida">
+  <h2>8 · Comida <span class="tag">new</span></h2>
+  <p class="lead">Everything you eat, food by food. Send a photo or say it («una caña y unas bravas»); the agent estimates the grams and nutrients of each food, or reads them off the label.</p>
+  <div class="grid">
+    <figure><a href="shots/48-comida.png"><img src="shots/48-comida.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> Under «Esta semana»: today in kcal; protein and fibre against your target (1,6 g per kg of your weight, 25 g of fibre); then each meal with its time and your photo, and your supplements. Under it, the average of the week on days with lunch and dinner</figcaption></figure>
+    <figure><a href="shots/49-comida-detalle.png"><img src="shots/49-comida-detalle.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> A meal: the photos you sent, then each food with its grams and what it gives you; at the bottom, its ten totals</figcaption></figure>
+  </div>
+  <ol class="steps" style="margin-top:16px">
+    <li>Photo or words, by WhatsApp or the web chat: one meal, every food in it (coffee and alcohol too: 60 mg a solo, 8 g a caña). Several photos at once (the plate and its label) are one meal, and a line right after them («esto es la cena») goes with them. On the web you can also paste or drop them.</li>
+    <li>The reply ends with how far into the day you are: «Hoy: 1.640 kcal, 98 g de proteína de 120». Short at dinner, it names a food that closes the gap («un yogur griego y una pera»).</li>
+    <li>«Lo de siempre», «lo mismo que ayer», «otro igual»: it copies that meal food by food, without asking.</li>
+    <li>40 min before bed, if no dinner was logged, the bedtime message asks what you had.</li>
+    <li>Wrong? «El arroz eran 100 g»: it deletes the meal and logs it again.</li>
+  </ol>
+  <details><summary>What it feeds into «Lo que te hace bien y mal»</summary>
+    <table>
+      <tr><th>Comparison</th><th>When it starts</th></tr>
+      <tr><td>Mucha proteína · hidratos · azúcar · fibra · grasa · sal · días de comer mucho: your high third against your low one</td><td>After 30 days with lunch and dinner logged. Until then they are listed as «Aún sin datos suficientes»</td></tr>
+      <tr><td>Cenar a menos de 2 h de acostarte (against 3 h or more)</td><td>10 nights each side with a logged dinner</td></tr>
+      <tr><td>Café después de las 14:00 · Beber más de dos copas</td><td>10 nights each side</td></tr>
+      <tr><td>Supplements: days you take it against days you don't</td><td>From the first day you take it, 10 days each side</td></tr>
+    </table>
+    <p>Days only count when lunch and dinner are both logged: a half-logged day would look like a day of eating little. Days in a row also count for less: a supplement taken every day since July is not 90 separate tries.</p>
+  </details>
+</section>
+
+<section id="productos">
+  <h2>9 · Piel <span class="tag">new</span></h2>
+  <p class="lead">Only your creams: what goes on your skin. Send a photo of one; it lands here with its own 3D icon and its sheet from the web. Supplements live in «Comida», with what you eat and drink.</p>
+  <figure style="max-width:520px"><a href="shots/51-productos.png"><img src="shots/51-productos.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> Left column, under «Entrenos»: icon, name, and when to use it, or «Hoy ✓» once used today. «Foto» opens WhatsApp with «Mira esta crema»</figcaption></figure>
+  <div class="grid" style="margin-top:16px">
+    <figure><a href="shots/52-producto-piel.png"><img src="shots/52-producto-piel.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> A cream: brand, active, when; «Lo he usado hoy» with its 14 days; what each ingredient does, «Ojo con», «Cómo»</figcaption></figure>
+    <figure><a href="shots/53-producto-suplemento.png"><img src="shots/53-producto-suplemento.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> A supplement, opened from «Comida»: the same sheet, with how often you have really taken it</figcaption></figure>
+  </div>
+  <ol class="steps" style="margin-top:16px">
+    <li>Photo to the chat (or WhatsApp): it reads the label, saves it and draws its icon from your photo.</li>
+    <li>It looks up the product on the web: what it is, what each active does, warnings, how to use it, sources.</li>
+    <li>«Me he tomado la creatina» ticks today; «ya no uso el retinol» retires it (kept, never deleted).</li>
+  </ol>
+  <p style="margin-top:10px">The two creams here and the three supplements in «Comida» are tests from the other session; it deletes them once you've seen them.</p>
+  <details><summary>The evidence it shows for creams (checked 17-oct-2026)</summary>
+    <table>
+      <tr><th>For</th><th>Line</th><th>Source</th></tr>
+      <tr><td>Solar</td><td>Solar every day: skin ages less over 4.5 years (903 adults)</td><td><a href="https://doi.org/10.7326/0003-4819-158-11-201306040-00002">Hughes, Ann Intern Med 2013</a></td></tr>
+      <tr><td>Solar</td><td>Reapply every 2 h outdoors, and after sweating or swimming</td><td><a href="https://www.aad.org/public/everyday-care/sun-protection/shade-clothing-sunscreen/how-to-apply-sunscreen">American Academy of Dermatology</a></td></tr>
+      <tr><td>Retinol</td><td>At night, 3 days a week to start: it irritates</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2699641/">Mukherjee, Clin Interv Aging 2006</a></td></tr>
+      <tr><td>Every cream</td><td>Poor sleep: the skin barrier recovers 30 % worse (association)</td><td><a href="https://doi.org/10.1111/ced.12455">Oyetakin-White, Clin Exp Dermatol 2015</a></td></tr>
+    </table>
+  </details>
+</section>
+
+<section id="bano">
+  <h2>10 · Baño <span class="tag">new</span></h2>
+  <p class="lead">Each time you go to the toilet and how it went, told by WhatsApp in your own words. With the urine infection in March and the prostatitis until April, it is the one place where a symptom coming back shows up.</p>
+  <figure style="max-width:620px"><a href="shots/59-lo-que-apuntas.png"><img src="shots/59-lo-que-apuntas.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> No card on the panel («no lo hagas visual»): «Datos → Lo que apuntas» counts them under «Baño», and each time is a line in «Día a día → Médico»</figcaption></figure>
+  <ol class="steps" style="margin-top:16px">
+    <li>«Acabo de mear y me escuece un poco» → <i>Pis: escozor</i>. «He cagado, normal» → <i>Caca: tipo 4</i> (the Bristol scale: 1 hard lumps, 4 normal, 7 liquid). «Esta noche me he levantado dos veces a mear» → two pees at 03:00. «He tardado 10 minutos» is kept too.</li>
+    <li>What it keeps: pee or poo, how it went (bien, regular, mal) and only the symptoms you say: escozor, urgencia, dolor, sangre, no vacía del todo, chorro flojo.</li>
+    <li>The reply is one line with the day so far: «Apuntado. Hoy 3 pis y 1 caca».</li>
+    <li>Blood, burning or pain with fever, or burning two days running: a second line telling you to call your doctor.</li>
+  </ol>
+</section>
+
+<section id="bienmal">
+  <h2>11 · Lo que te hace bien y mal <span class="tag">new</span></h2>
+  <p class="lead">From your own 243 nights of WHOOP: what goes with better and worse days. Not general advice: yours.</p>
+  <figure><a href="shots/55-hallazgos.png"><img src="shots/55-hallazgos.png" alt="" loading="lazy"></a><figcaption>On the panel: «Te hace bien» left, «Te hace mal» right</figcaption></figure>
+  <div class="grid" style="margin-top:16px">
+    <figure><a href="shots/58-efectos-entero.png"><img src="shots/58-efectos-entero.png" alt="" loading="lazy"></a><figcaption>«Ver todo» → Cómo te afecta: one tab per result (Recuperación, Ánimo, Sueño, VFC, Pulso, Síntomas, Código). Te hace bien · Por aclarar · Te hace mal; «probable» when it is less sure</figcaption></figure>
+    <figure><a href="shots/56-hallazgo.png"><img src="shots/56-hallazgo.png" alt="" loading="lazy"></a><figcaption>Click a row: the numbers behind it, and «Probarlo dos semanas»</figcaption></figure>
+  </div>
+  <ul style="margin-top:12px">
+    <li>«Probarlo dos semanas» starts a test of that habit; it shows under «Probando» on this page until it ends. None started yet, so no screenshot.</li>
+    <li>«Aún sin datos suficientes» lists what still has too few nights to say (today: tension with your partner, drinking, coffee…).</li>
+    <li><b>New: Ánimo and Síntomas</b>, the next day's. The bedtime message ends with «¿qué tal el día, del 1 al 10? ¿algún síntoma?» until you answer; «un 7, nada» or «un 5, y algo de tos» is enough. With about 10 days on each side (a few weeks) the first results show; until then both tabs say so.</li>
+  </ul>
+  <details><summary>What it compares: 48 habits × 7 results = 336 comparisons</summary>
+    <p>Each habit against each result (Recuperación, Ánimo, Sueño, VFC, Pulso, Síntomas, Código). On the local copy, 101 have enough days on both sides and 23 are clear (16 good, 7 bad). Production has more days, so more of them.</p>
+    <table>
+      <tr><th>Group</th><th>Habits</th></tr>
+      <tr><td>Sleep</td><td>Bed early, short sleep, sleep debt, weekend, Sunday</td></tr>
+      <tr><td>Training</td><td>Any, strength, cardio, late workout, a hard day. <b>New:</b> a gym session or run told in the chat counts, even when WHOOP missed it</td></tr>
+      <tr><td>Work</td><td>Coding late, no code, a heavy coding day, a day full of meetings</td></tr>
+      <tr><td>Phone</td><td>WhatsApp late, phone right before bed, many messages, a tense day, and for 8 topics (clients, partner, family…) talking about it and tension about it</td></tr>
+      <tr><td>Life</td><td>Seeing people</td></tr>
+      <tr><td>Food and drink</td><td>Alcohol, more than two drinks, caffeine, caffeine after 14:00, dinner close to bed, and 7 nutrients (your high third against your low one)</td></tr>
+      <tr><td>Supplements</td><td>One per supplement: days you take it against days you don't</td></tr>
+      <tr><td><b>New:</b> your habits and your own things</td><td>One per habit you tick («Leer 20 min», «Pastilla») and per thing you log («Meditar», «Sauna»), from the first day</td></tr>
+      <tr><td><b>New:</b> your symptoms</td><td>One per symptom («Dolor de cabeza», «Pis con escozor»): days with it against days you said you were fine. It shows what comes with it (a worse night), never a habit to try</td></tr>
+    </table>
+  </details>
+</section>
+
+<section id="datos">
+  <h2>12 · Datos</h2>
+  <p class="lead">Every number, one click away and off the panel: «Datos», top right. Three tabs.</p>
+  <h3>Evolución: 12 weeks of each card</h3>
+  <div class="shots two"><figure><a href="shots/60-datos.png"><img src="shots/60-datos.png" alt="" loading="lazy"></a><figcaption>Sueño, Recuperación, Entreno, Peso, Código, Llamadas. Amber arrow = worse than your average</figcaption></figure><figure><a href="shots/61-datos-abajo.png"><img src="shots/61-datos-abajo.png" alt="" loading="lazy"></a><figcaption>Further down</figcaption></figure></div>
+  <p style="margin-top:10px">Peso stays empty until you send a photo of the scale to the chat. These shots are from the local copy, whose WHOOP stops on 6 Sept («hasta el 7 sept», and «Sueño» empty this week); production syncs every 10 min.</p>
+  <h3>Día a día: every day, with 8 filters</h3>
+  <div class="shots four"><figure><a href="shots/62-dia-todo.png"><img src="shots/62-dia-todo.png" alt="" loading="lazy"></a><figcaption><b>Todo</b></figcaption></figure><figure><a href="shots/63-dia-sueno.png"><img src="shots/63-dia-sueno.png" alt="" loading="lazy"></a><figcaption><b>Sueño</b>: WHOOP (empty here: local copy)</figcaption></figure><figure><a href="shots/64-dia-entreno.png"><img src="shots/64-dia-entreno.png" alt="" loading="lazy"></a><figcaption><b>Entreno</b>: WHOOP + chat</figcaption></figure><figure><a href="shots/65-dia-comidas.png"><img src="shots/65-dia-comidas.png" alt="" loading="lazy"></a><figcaption><b>Comidas</b>: chat and photos</figcaption></figure><figure><a href="shots/66-dia-trabajo.png"><img src="shots/66-dia-trabajo.png" alt="" loading="lazy"></a><figcaption><b>Trabajo</b>: calls and code</figcaption></figure><figure><a href="shots/67-dia-vida.png"><img src="shots/67-dia-vida.png" alt="" loading="lazy"></a><figcaption><b>Vida</b>: Pocket outside work</figcaption></figure><figure><a href="shots/68-dia-whatsapp.png"><img src="shots/68-dia-whatsapp.png" alt="" loading="lazy"></a><figcaption><b>WhatsApp</b>: pattern + one line per chat</figcaption></figure><figure><a href="shots/69-dia-medico.png"><img src="shots/69-dia-medico.png" alt="" loading="lazy"></a><figcaption><b>Médico</b>: the history</figcaption></figure></div>
+  <h3>Lo que apuntas: everything you log, by category <span class="tag">new</span></h3>
+  <div class="grid">
+    <figure><a href="shots/59-lo-que-apuntas.png"><img src="shots/59-lo-que-apuntas.png" alt="" loading="lazy"></a><figcaption><span class="tag ex">prueba</span> The last 30 days, one card per category: Ánimo and Síntomas always first, then the most used. Each thing with how often, the last day and its last figure</figcaption></figure>
+    <ol class="steps">
+      <li>Tell the chat anything: «me duele la cabeza, un 6, en la sien» → <i>Síntomas · Dolor de cabeza · 6/10</i>. «Dos litros de agua» → <i>Hidratación · Agua · 2 L</i>.</li>
+      <li>New things land in one of your categories, or in a new short one. Next time it uses the same name and category.</li>
+      <li>You sort it by talking: «pon la sauna en Descanso», «junta migraña con dolor de cabeza», «cambia Descanso por Recuperación». Past entries move with it; nothing is deleted. Ánimo and Síntomas keep their names: they are what gets compared.</li>
+      <li>Things you do (sauna, agua) are compared in «Lo que te hace bien y mal» as habits. Your mood and your symptoms are compared as results: what you did the day before against how you felt.</li>
+    </ol>
+  </div>
+  <h3>WhatsApp: what topics tense you <span class="tag">new</span></h3>
+  <div class="grid">
+    <figure><a href="shots/68-whatsapp-temas.png"><img src="shots/68-whatsapp-temas.png" alt="" loading="lazy"></a><figcaption>«Qué temas te tensan · 12 semanas»: share of tense chats per topic</figcaption></figure>
+    <div>
+      <ul>
+        <li>Each chat of the day gets a topic: Clientes, Socio, Equipo, Familia, Pareja, Amigos, Dinero, Salud or Otros.</li>
+        <li>By what was talked about; if unclear, by who it was.</li>
+        <li>Bars are the % of that topic's chats read as tense or bad. «Otros» and topics with too few chats stay out.</li>
+        <li>The agent's «buscar» sees the same: «¿qué me tensa más?».</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="movil">
+  <h2>13 · Móvil</h2>
+  <p class="lead">Same app on the phone. The camera opens directly; «Llamar» dials; the SMS code fills itself in.</p>
+  <div class="shots four"><figure><a href="shots/80-movil-login.png"><img src="shots/80-movil-login.png" alt="" loading="lazy"></a><figcaption>Login</figcaption></figure><figure><a href="shots/89-movil-recuperar.png"><img src="shots/89-movil-recuperar.png" alt="" loading="lazy"></a><figcaption>Recuperar contraseña</figcaption></figure><figure><a href="shots/81-movil-chat.png"><img src="shots/81-movil-chat.png" alt="" loading="lazy"></a><figcaption>Chat</figcaption></figure><figure><a href="shots/82-movil-panel.png"><img src="shots/82-movil-panel.png" alt="" loading="lazy"></a><figcaption>Panel</figcaption></figure><figure><a href="shots/83-movil-urgente.png"><img src="shots/83-movil-urgente.png" alt="" loading="lazy"></a><figcaption>An urgent item</figcaption></figure><figure><a href="shots/84-movil-hoy.png"><img src="shots/84-movil-hoy.png" alt="" loading="lazy"></a><figcaption>Hoy</figcaption></figure><figure><a href="shots/85-movil-semana.png"><img src="shots/85-movil-semana.png" alt="" loading="lazy"></a><figcaption>Esta semana</figcaption></figure><figure><a href="shots/86-movil-productos.png"><img src="shots/86-movil-productos.png" alt="" loading="lazy"></a><figcaption>Piel</figcaption></figure><figure><a href="shots/87-movil-datos.png"><img src="shots/87-movil-datos.png" alt="" loading="lazy"></a><figcaption>Datos</figcaption></figure></div>
+  <h3>The whole panel on the phone</h3>
+  <div class="tall" style="width:360px"><figure><a href="shots/88-movil-panel-entero.png"><img src="shots/88-movil-panel-entero.png" alt="" loading="lazy"></a><figcaption></figcaption></figure></div>
+</section>
+
+<section id="whatsapp">
+  <h2>14 · WhatsApp 621</h2>
+  <p class="lead">The assistant writes to you; you can answer exactly like in the chat. <span class="tag amber">mockup with real texts</span></p>
+  <div class="row">
+    <div class="phone">
+      <div class="top">Salud<small>+34 621 33 93 27</small></div>
+      <div class="day"><span>HOY</span></div>
+      <div class="b">Recuperación al 39% y llevas 6 semanas rondando 6h de sueño cuando necesitas más de 9h, con esa deuda tan grande hoy toca bajar el pistón del gimnasio aunque ayer entrenaras fuerte; nada de comida registrada estos dos días así que apunta qué comes para que pueda ayudarte con eso; y ese dolor por dentro cerca de la ingle que mencionaste el viernes, si sigue ahí o vuelve, coméntaselo a tu médico que no es algo que debamos dejar pasar sin mirarlo.<time>10:20</time></div>
+      <div class="b me">Vale. Recuérdame a las 23 tomar el magnesio<time>17:44 ✓✓</time></div>
+      <div class="b">Hecho: hoy a las 23:00 te escribo «tomar el magnesio».<time>17:44</time></div>
+      <div class="b">⏰ Tomar el magnesio<time>23:00</time></div>
+      <div class="b">A la cama a las 23:05. Te quedan 40 min: pantallas fuera.<time>22:25</time></div>
+    </div>
+    <div style="flex:1;min-width:300px">
+      <table>
+        <tr><th>Message</th><th>When</th></tr>
+        <tr><td><b>Morning note</b></td><td>20 min after WHOOP scores the night, or 10:00 at the latest; never after 13:00. Once a day. Also fills «Hoy».</td></tr>
+        <tr><td><b>Bedtime alert</b></td><td>40 min before your bedtime (wake-up median − sleep need − 15 min to fall asleep). Once a night.</td></tr>
+        <tr><td><b>Reminders</b></td><td>Exactly at the time you asked. </td></tr>
+        <tr><td><b>Your replies</b></td><td>Text, voice, photo, video: same agent, same 9 tools as the chat. Several photos sent together get one reply.</td></tr>
+      </table>
+      <ul style="margin-top:12px">
+        <li>The morning text and the two reminders are real rows in the database.</li>
+        <li>The bedtime wording and the reply are illustrative.</li>
+        <li>Locally the morning note has status <code>not-configured</code>: it was written but not sent.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<section id="solo">
+  <h2>15 · What runs by itself</h2>
+  <p class="lead">No sync button any more. Everything comes in on its own.</p>
+  <table>
+    <tr><th>Source</th><th>How</th><th>What it brings</th></tr>
+    <tr><td>WHOOP</td><td>Webhook on every new night or workout, plus every 10 min</td><td>Sleep, recovery, workouts, distance</td></tr>
+    <tr><td>Pocket</td><td>Webhook + every 10 min</td><td>Recordings → work calls, life, medical things heard</td></tr>
+    <tr><td>GitHub</td><td>Every 10 min</td><td>Lines of code, you and Gonzalo</td></tr>
+    <tr><td>Your WhatsApp</td><td>Evolution, once a day</td><td>One line per chat, per day, with its tone and its topic (Clientes, Socio, Familia…)</td></tr>
+    <tr><td>Assistant</td><td>After each pass</td><td>Decides whether the morning note or bedtime alert is due</td></tr>
+  </table>
+  <details><summary>The plumbing</summary>
+    <ul>
+      <li><code>pg_cron</code> on Supabase calls <code>/api/sync</code> every 10 min with a secret; it answers at once and works in <code>after()</code>.</li>
+      <li>Opening the panel also triggers a pass in the background.</li>
+      <li>The agent's <code>sincronizar</code> tool forces one on request.</li>
+    </ul>
+  </details>
+</section>
+
+
+<section id="estado">
+  <h2>16 · Status</h2>
+  <table>
+    <tr><th>Item</th><th>Status</th></tr>
+    <tr><td>Everything in this guide</td><td><b>Live</b> on <code>health-five-livid.vercel.app</code> since 18-oct (deploy <code>dpl_HdQT9…</code>): <code>/login</code> answers 200, a photo without a session 401.</td></tr>
+    <tr><td>Git</td><td><b>Not committed.</b> It was deployed from the working tree: a deploy from git would put the old version back.</td></tr>
+    <tr><td>SMS for «¿Olvidaste tu contraseña?»</td><td>Local test 12/12 (code to the console). In production it needs Vesta's 4 <code>TWILIO_*</code> keys in Vercel: <b>still not in Vercel</b> (checked 18-oct). Without them the code never arrives; <code>cambiar-contrasena.sh</code> still works.</td></tr>
+    <tr><td>Migrations</td><td>All 20 ran on production with the deploy, <code>photos</code> and the products clean-up included.</td></tr>
+    <tr><td>18 medical entries</td><td>On the local DB. Not checked in production: if «Historial médico» is empty there, <code>scripts/import-historial.ts --write</code>.</td></tr>
+    <tr><td>Your WhatsApp, 97 days with topics</td><td>Read on the local DB (~$3.12). Production reads it once a day by itself.</td></tr>
+    <tr><td>Photos by WhatsApp</td><td>Live, <b>not tried yet from your phone</b>. Two photos at once of your next meal should get one reply and show on «Comida».</td></tr>
+    <tr><td>Lo que apuntas, Ánimo y Síntomas</td><td><b>Only on your laptop.</b> Categories, <code>organizar</code>, the «Datos» tab, the two new tabs and the bedtime question are not deployed yet.</td></tr>
+    <tr><td>Baño</td><td><b>Only on your laptop.</b> Not deployed yet: the agent in production does not know «Baño».</td></tr>
+    <tr><td>Piel</td><td>A food or drink saved as a product (a yogurt, a Monster) was retired with the deploy; the days you took it still count.</td></tr>
+    <tr><td>Tests</td><td><code>pnpm test</code>, typecheck and lint: 0 errors</td></tr>
+    <tr><td>Google</td><td>No keys: the button stays hidden</td></tr>
+  </table>
+</section>
+
+</main>
+</body>
+</html>

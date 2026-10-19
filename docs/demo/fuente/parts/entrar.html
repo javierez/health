@@ -1,0 +1,48 @@
+<section id="entrar">
+  <h2>1 · Entrar</h2>
+  <p class="lead">Same login as Vesta: better-auth, email and password, 7-day session. Since 18-oct, also «¿Olvidaste tu contraseña?» with a code by SMS.</p>
+  {LOGIN}
+  <h3>¿Olvidaste tu contraseña?</h3>
+  <ol class="steps">
+    <li>On the login, «¿Olvidaste tu contraseña?» → your email → «Enviar código SMS».</li>
+    <li>An SMS reaches your phone (the 636): «Tu código de verificación de Salud es: 482913. Válido por 5 minutos.»</li>
+    <li>Type the 6 numbers and the new password → back to the login with «Contraseña cambiada».</li>
+  </ol>
+  {RESET}
+  <table style="margin-top:14px">
+    <tr><th>Like Vesta</th><th>Better than Vesta</th></tr>
+    <tr><td>
+      <ul>
+        <li>better-auth 1.3.4, same version</li>
+        <li>7-day session, 5-min encrypted cookie cache; 5 tries a minute</li>
+        <li>20 s timeout so the button never hangs</li>
+        <li>Reset by a 6-digit SMS code, stored hashed, valid 5 min, used once; asking again kills the old one</li>
+        <li>Same answer whether the email is yours or not</li>
+        <li>New password: 8+, uppercase, lowercase and a number (also in «Cuenta»)</li>
+      </ul>
+    </td><td>
+      <ul>
+        <li>A code dies after 5 wrong tries (Vesta: unlimited)</li>
+        <li>A new password signs out every device (Vesta: sessions stay)</li>
+        <li>Send limits live in the database: 3 codes per 15 min to your phone, 5 per IP</li>
+        <li>«Contraseña cambiada» shows on the login (Vesta drops it)</li>
+      </ul>
+    </td></tr>
+  </table>
+  <details><summary>What is different, on purpose</summary>
+    <ul>
+      <li>No «Regístrate»: one user only, created by <code>scripts/crear-usuario.ts</code>. Google only lets in an email that already exists.</li>
+      <li>No SMS code at every login (Vesta's optional 2FA can be skipped anyway: it runs after the session cookie is set).</li>
+      <li>You give your email, not your phone: the code always goes to the one number on file (<code>WHATSAPP_TO</code>).</li>
+      <li>After login you go back to the page you asked for (<code>?callbackUrl=</code>).</li>
+    </ul>
+  </details>
+  <details><summary>What stays open without a session</summary>
+    <ul>
+      <li><code>/login</code> (with its two reset steps) and <code>/api/auth/*</code> (better-auth itself).</li>
+      <li><code>/api/webhooks/*</code>: Pocket, WHOOP and WhatsApp each carry their own secret.</li>
+      <li><code>/api/sync</code>: checks its own bearer.</li>
+      <li>Everything else, images included: redirect to <code>/login</code>. An <code>/api/</code> route answers 401. Checked 18-oct: an action of the panel posted to <code>/login</code> without a session does not run.</li>
+    </ul>
+  </details>
+</section>

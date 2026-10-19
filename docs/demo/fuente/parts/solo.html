@@ -1,0 +1,19 @@
+<section id="solo">
+  <h2>11 · What runs by itself</h2>
+  <p class="lead">No sync button any more. Everything comes in on its own.</p>
+  <table>
+    <tr><th>Source</th><th>How</th><th>What it brings</th></tr>
+    <tr><td>WHOOP</td><td>Webhook on every new night or workout, plus every 10 min</td><td>Sleep, recovery, workouts, distance</td></tr>
+    <tr><td>Pocket</td><td>Webhook + every 10 min</td><td>Recordings → work calls, life, medical things heard</td></tr>
+    <tr><td>GitHub</td><td>Every 10 min</td><td>Lines of code, you and Gonzalo</td></tr>
+    <tr><td>Your WhatsApp</td><td>Evolution, once a day</td><td>One line per chat, per day, with its tone and its topic (Clientes, Socio, Familia…)</td></tr>
+    <tr><td>Assistant</td><td>After each pass</td><td>Decides whether the morning note or bedtime alert is due</td></tr>
+  </table>
+  <details><summary>The plumbing</summary>
+    <ul>
+      <li><code>pg_cron</code> on Supabase calls <code>/api/sync</code> every 10 min with a secret; it answers at once and works in <code>after()</code>.</li>
+      <li>Opening the panel also triggers a pass in the background.</li>
+      <li>The agent's <code>sincronizar</code> tool forces one on request.</li>
+    </ul>
+  </details>
+</section>
