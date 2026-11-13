@@ -20,6 +20,8 @@ export interface Day {
   slept: number | null;
   /** Nights under 6 h among this one and the two before, 0 to 3. */
   debt: number | null;
+  /** Minutes from his usual bedtime (the median of the seven nights before), either way. */
+  bedShift: number | null;
 
   // The next morning and the next day: what is measured.
   recovery: number | null;
@@ -38,6 +40,15 @@ export interface Day {
   /** A workout that ended after 20:30. */
   lateWorkout: boolean | null;
   strain: number | null;
+  /** WHOOP's steps that day; under 1,000 the band was off, so unknown. */
+  steps: number | null;
+  /** Workout minutes in zones 1-3 and in zones 4-5. */
+  moderateMin: number | null;
+  vigorousMin: number | null;
+  /** Cardio minutes in the seven days ending this one, a vigorous minute counting two (WHO's 150). */
+  activeWeek: number | null;
+  /** Edge's 0–3 stress for the day, from his pulse. */
+  stress: number | null;
   /** His lines of code (added plus deleted). */
   lines: number | null;
   /** A commit of his between 00:00 and 06:00, after this evening. */
@@ -57,6 +68,9 @@ export interface Day {
   /** Minutes of work and of social talk his Pocket heard. */
   business: number | null;
   social: number | null;
+  /** Of what Pocket heard, minutes with his partner or family and with friends. */
+  family: number | null;
+  friends: number | null;
   /** From a meal he told the chat about; null on days he told nothing. */
   alcohol: boolean | null;
   caffeine: boolean | null;
@@ -86,6 +100,8 @@ export interface Raw {
   recoveries: { morning: string; recovery: number | null; hrv: number | null; rhr: number | null }[];
   strain: { day: string; strain: number | null }[];
   workouts: { day: string; end: Date; sport: string }[];
+  /** The band's day as the WHOOP screens read it (`lib/whoop/days`): steps, zone minutes, stress. */
+  activity: { day: string; steps: number | null; moderate: number; vigorous: number; stress: number | null }[];
   /** His lines per local day, and the evenings followed by a commit before 06:00. */
   code: { day: string; lines: number }[];
   lateCode: string[];
@@ -93,7 +109,7 @@ export interface Raw {
   whatsapp: { day: string; sent: number; late: number; chats: number; last: Date }[];
   whatsappRange: [string, string] | null;
   waDays: { day: string; mood: number | null; summary: string; chats: WaChat[] }[];
-  pocket: { day: string; business: number; social: number; lines: string }[];
+  pocket: { day: string; business: number; social: number; family: number; friends: number; lines: string }[];
   pocketRange: [string, string] | null;
   /** Pocket's conversations read for tone, on WhatsApp's two lists. */
   talks: { day: string; tone: WaTone; topic: WaTopic | null }[];
@@ -110,6 +126,9 @@ export interface Raw {
 const STRENGTH = new Set(["weightlifting", "powerlifting", "functional-fitness"]);
 const CARDIO = new Set(["running", "cycling", "spin", "swimming", "soccer", "padel", "race-walking", "skiing"]);
 
+/** Under this many steps the band was off, not him on the sofa (as in Longevidad). */
+const WORN = 1000;
+
 const inRange = (day: string, r: [string, string] | null) => r !== null && day >= r[0] && day <= r[1];
 const weekdayOf = (day: string) => ((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7) + 1;
 
@@ -117,6 +136,7 @@ export function buildDays(raw: Raw, until: string): Day[] {
   const sleepBy = new Map(raw.sleeps.map((s) => [s.morning, s]));
   const recBy = new Map(raw.recoveries.map((r) => [r.morning, r]));
   const strainBy = new Map(raw.strain.map((s) => [s.day, s.strain]));
+  const activityBy = new Map(raw.activity.map((a) => [a.day, a]));
   const linesBy = new Map(raw.code.map((c) => [c.day, c.lines]));
   const lateCode = new Set(raw.lateCode);
   const waBy = new Map(raw.whatsapp.map((w) => [w.day, w]));
@@ -154,6 +174,7 @@ export function buildDays(raw: Raw, until: string): Day[] {
     const told = toldBy.get(day) ?? [];
     // A training he told counts even on a day WHOOP did not score; without either, unknown.
     const trainedIf = (whoopSaw: boolean, toldOne: boolean) => (toldOne ? true : whoop ? whoopSaw : null);
+    const act = activityBy.get(day);
     const wa = waBy.get(day);
     const read = readBy.get(day);
     const pocket = pocketBy.get(day);
@@ -169,6 +190,7 @@ export function buildDays(raw: Raw, until: string): Day[] {
       bed: clock === null ? null : clock < 12 * 60 ? clock + 1440 : clock,
       slept: sleep?.slept ?? null,
       debt: nights.every((n) => n !== null) ? nights.filter((n) => n! < 360).length : null,
+      bedShift: null,
       recovery: rec?.recovery ?? null,
       hrv: rec?.hrv ?? null,
       rhr: rec?.rhr ?? null,
@@ -180,6 +202,11 @@ export function buildDays(raw: Raw, until: string): Day[] {
       cardio: trainedIf(workouts.some((w) => CARDIO.has(w.sport)), told.some((t) => t.training === "run")),
       lateWorkout: whoop ? workouts.some((w) => localMinutes(w.end) >= 20 * 60 + 30) : null,
       strain: strainBy.get(day) ?? null,
+      steps: act?.steps != null && act.steps >= WORN ? act.steps : null,
+      moderateMin: whoop ? Math.round(act?.moderate ?? 0) : null,
+      vigorousMin: whoop ? Math.round(act?.vigorous ?? 0) : null,
+      activeWeek: activeWeek(day, recBy, activityBy),
+      stress: act?.stress ?? null,
       lines: inRange(day, raw.codeRange) ? (linesBy.get(day) ?? 0) : null,
       lateCode: inRange(morning, raw.codeRange) ? lateCode.has(day) : null,
       sent: inRange(day, raw.whatsappRange) ? (wa?.sent ?? 0) : null,
@@ -191,6 +218,8 @@ export function buildDays(raw: Raw, until: string): Day[] {
       tenseTopics: tense ? [...new Set(tense.flatMap((c) => (c.topic ? [c.topic] : [])))] : null,
       business: inRange(day, raw.pocketRange) ? (pocket?.business ?? 0) : null,
       social: inRange(day, raw.pocketRange) ? (pocket?.social ?? 0) : null,
+      family: inRange(day, raw.pocketRange) ? (pocket?.family ?? 0) : null,
+      friends: inRange(day, raw.pocketRange) ? (pocket?.friends ?? 0) : null,
       alcohol: meals ? meals.some((m) => m.alcohol) : null,
       caffeine: meals ? meals.some((m) => m.caffeine) : null,
       lateCaffeine: meals ? meals.some((m) => m.caffeine && localMinutes(m.at) >= 14 * 60) : null,
@@ -204,7 +233,25 @@ export function buildDays(raw: Raw, until: string): Day[] {
       text: [read?.summary, ...(read?.chats.map((c) => `${c.name}: ${c.line}`) ?? []), pocket?.lines].filter(Boolean).join("\n").toLowerCase(),
     });
   }
+  out.forEach((d, i) => (d.bedShift = bedShift(out, i)));
   return out;
+}
+
+/** Five of the seven mornings scored, or the week is not known: a missing day would read as a rest day. */
+function activeWeek(day: string, recBy: Map<string, unknown>, activityBy: Map<string, Raw["activity"][number]>) {
+  const week = Array.from({ length: 7 }, (_, i) => addDays(day, -i));
+  if (week.filter((d) => recBy.has(addDays(d, 1))).length < 5) return null;
+  return Math.round(week.reduce((t, d) => t + (activityBy.get(d)?.moderate ?? 0) + 2 * (activityBy.get(d)?.vigorous ?? 0), 0));
+}
+
+/** Against the median of the beds known in the seven evenings before; under four known, unknown. */
+function bedShift(days: Day[], i: number) {
+  const bed = days[i]!.bed;
+  const before = days.slice(Math.max(0, i - 7), i).flatMap((d) => (d.bed === null ? [] : [d.bed])).sort((a, b) => a - b);
+  if (bed === null || before.length < 4) return null;
+  const mid = before.length / 2;
+  const median = before.length % 2 ? before[Math.floor(mid)]! : (before[mid - 1]! + before[mid]!) / 2;
+  return Math.round(Math.abs(bed - median));
 }
 
 function groupBy<T>(xs: T[], key: (x: T) => string) {

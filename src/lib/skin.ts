@@ -82,7 +82,8 @@ export function routineOf(p: Pick<Product, "moment">, list: Standing[]): Standin
 /** «Cada mañana», «3 noches por semana», or just «Noche» before he has a habit for it. */
 export function whenText(p: Pick<Product, "moment">, routine: Standing | null): string | null {
   const m = p.moment;
-  if (m === "entreno") return routineTitle(m);
+  if (m === "mañana y noche") return "Cada mañana y cada noche";
+  if (m !== null && m !== "mañana" && m !== "noche") return routineTitle(m);
   if (!routine) return m ? m.charAt(0).toUpperCase() + m.slice(1) : null;
   const { period, target } = routine.commitment;
   if (period === "day" || target >= 7) return `Cada ${m ?? "día"}`;

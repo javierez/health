@@ -1,4 +1,4 @@
-import { MAX_BUBBLES, toBubbles, typingMs } from "./bubbles";
+import { MAX_BUBBLES, oneLine, toBubbles, typingMs } from "./bubbles";
 
 let passed = 0;
 const failures: string[] = [];
@@ -29,8 +29,12 @@ check("no bubble much over the target", cut.every((b) => b.length <= 200), true)
 check("nothing lost", cut.join(" "), wall);
 check("a question ends its bubble", cut.some((b) => b.endsWith("¿Te apunto el entreno cuando lo hagas?")), true);
 
+const list = "En ayunas:\n• Vinagre con sal y 600 ml de agua\nMedia mañana:\n• Omega 3 con algo de comer\n• Creatina, 5 g\nAntes de entrenar:\n• Colágeno y vitamina C";
+check("a list stays one bubble, line by line", toBubbles(list), [list]);
+check("the template's one line: lines as sentences, no bullets", oneLine("Dormiste 6 h 48.\n• Pesas 25 min a las 18:00\n• Omega 3 con la comida"), "Dormiste 6 h 48. Pesas 25 min a las 18:00. Omega 3 con la comida.");
 check("never more than three", toBubbles("a\n\nb\n\nc\n\nd\n\ne\n\nf").length, MAX_BUBBLES);
 check("the rest joins the last", toBubbles("a\n\nb\n\nc\n\nd\n\ne").at(-1), "c d e");
+check("a list joined keeps its lines", toBubbles("A\n• a\n\nB\n• b\n\nC\n• c\n\nD\n• d").at(-1), "C\n• c\nD\n• d");
 
 check("a short bubble types fast", typingMs("Hecho."), 572);
 check("a long one is capped", typingMs("x".repeat(500)), 1_600);

@@ -13,6 +13,7 @@ const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
 
 check("morning, none told: asked", withMoodAsk("Dormiste 6 h.", "morning", null, now), `Dormiste 6 h. ${MOOD_QUESTION}`);
 check("afternoon, told 5 h ago: asked", withMoodAsk("Te queda pierna.", "commitments", hoursAgo(5), now), `Te queda pierna. ${MOOD_QUESTION}`);
+check("under a list, on its own line", withMoodAsk("Dormiste 6 h.\n• Pesas a las 18:00", "morning", null, now), `Dormiste 6 h.\n• Pesas a las 18:00\n${MOOD_QUESTION}`);
 check("told an hour ago: not asked", withMoodAsk("Dormiste 6 h.", "morning", hoursAgo(1), now), "Dormiste 6 h.");
 check("bedtime asks on its own", withMoodAsk("A la cama a las 00:30.", "bedtime", null, now), "A la cama a las 00:30.");
 

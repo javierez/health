@@ -1,4 +1,4 @@
-import { exerciseOf, sportOf, zonesIn } from "./exercises";
+import { exerciseName, exerciseOf, sportOf, zonesIn } from "./exercises";
 
 let passed = 0;
 const failures: string[] = [];
@@ -35,4 +35,9 @@ if (failures.length > 0) {
   console.error(failures.join("\n"));
   process.exit(1);
 }
+check("a synonym takes the catalog's name", exerciseName("press de banca"), "Press banca");
+check("a plural too", exerciseName("Sentadillas"), "Sentadilla");
+check("a variant keeps its own", exerciseName("Sentadilla isométrica en pared"), "Sentadilla isométrica en pared");
+check("a variant still counts as its family", exerciseOf("Plancha de oso")?.name, "Abdominales");
+check("unknown: his name", exerciseName(" Turkish get up "), "Turkish get up");
 console.log(`exercises: ${passed} passed`);

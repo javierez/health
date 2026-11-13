@@ -1,4 +1,6 @@
-import { fromLocal, whenText } from "./reminders";
+import { fromLocal } from "~/lib/day";
+import { parseLesson } from "./lesson-tool";
+import { whenText } from "./reminders";
 import { range } from "./search";
 import { parseMoves, parseProducts } from "./product-tool";
 import { idList, parseFile, parseReminders } from "./tools";
@@ -103,6 +105,15 @@ check("to a routine, or out of one; an odd moment or no id dropped", moves, [
   { id: 4, moment: null },
 ]);
 check("nothing to move", parseMoves({ usar: [1] }), []);
+check("a new dose rides on the move", parseMoves({ rutina: [{ id: 14, momento: "media mañana", activo: "Creatina 8 a 10 g — al día" }] }), [{ id: 14, moment: "media mañana", ingredient: "Creatina 8 a 10 g, al día" }]);
+
+check(
+  "a lesson: one clean line, no dash",
+  parseLesson({ guardar: "  Una noche corta,  con la hora de la banda — empieza a contar tarde " }),
+  { save: "Una noche corta, con la hora de la banda, empieza a contar tarde", forget: [] },
+);
+check("forget: whole ids, once", parseLesson({ olvidar: [3, 3, -1, 2.5, "4"] }), { save: null, forget: [3] });
+check("an empty lesson is none", parseLesson({ guardar: "   " }), { save: null, forget: [] });
 
 console.log(`${passed} passed, ${failures.length} failed`);
 for (const f of failures) console.error(`  ✗ ${f}`);

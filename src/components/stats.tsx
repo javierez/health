@@ -51,6 +51,10 @@ export function Stats({ progress, data, tracked, moods }: { progress: Progress; 
           <Button asChild size="toolbar" variant="outline">
             <Link href="/?ver=entrenos">Entrenos</Link>
           </Button>
+          {/* Every WHOOP screen, off the panel too (Javier, 20-oct-2026: «no son protagonistas»). */}
+          <Button asChild size="toolbar" variant="outline">
+            <Link href="/?ver=whoop">WHOOP</Link>
+          </Button>
           {tab === "trends" && progress.until ? <span className="ml-auto self-center text-xs text-gray-500">hasta el {progress.until}</span> : null}
         </div>
         {tab === "trends" ? <Trends progress={progress} /> : tab === "days" ? <DayBrowser data={data} /> : <TrackersView tracked={tracked} moods={moods} />}

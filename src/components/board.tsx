@@ -24,7 +24,7 @@ const EMPTY: Record<Exclude<Filter, "medical">, string> = {
   all: "Aún no hay nada.",
   sleep: "Ninguna noche de WHOOP.",
   training: "Ningún entreno, ni en WHOOP ni en el chat.",
-  meals: "Ninguna comida. Mándale una foto al chat o dilo cerca del Pocket.",
+  meals: "Ninguna comida. Díselo al chat o cerca del Pocket.",
   work: "Nada de trabajo oído por el Pocket ni commits.",
   life: "Nada oído por el Pocket fuera del trabajo.",
   whatsapp: "Tu WhatsApp se lee una vez al día, de madrugada. Aún no ha llegado nada.",

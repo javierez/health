@@ -164,7 +164,7 @@ export function advise(d: AdviceInput): Advice[] {
       verb: "haz",
       area: "training",
       title: d.strengthWeek === 0 ? "Dos sesiones de fuerza antes del domingo" : "Una sesión de fuerza más antes del domingo",
-      detail: `Llevas ${d.strengthWeek} esta semana. La OMS pide fuerza de todo el cuerpo 2 o más días.`,
+      detail: `${d.strengthWeek === 0 ? "No me consta ninguna esta semana (si has entrenado, dímelo)" : "Me consta 1 esta semana"}. La OMS pide fuerza de todo el cuerpo 2 o más días.`,
       source: SOURCES.who,
     });
   }
@@ -174,7 +174,7 @@ export function advise(d: AdviceInput): Advice[] {
       verb: "haz",
       area: "training",
       title: `${150 - d.cardioMinutesWeek} min de cardio antes del domingo`,
-      detail: `Llevas ${d.cardioMinutesWeek} de 150 esta semana: a paso que puedas hablar, pero no cantar.`,
+      detail: `Me constan ${d.cardioMinutesWeek} de 150 esta semana: a paso que puedas hablar, pero no cantar.`,
       source: SOURCES.who,
     });
   }

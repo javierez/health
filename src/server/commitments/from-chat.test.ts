@@ -21,9 +21,9 @@ check(
   [{ action: "set", id: null, title: "Bici o Correr", activities: ["bike", "run"], metric: "km", target: 40, period: "week", proof: "auto" }],
 );
 check(
-  "«la pastilla cada día, te mando foto»: a habit",
+  "«la pastilla cada día, te mando foto»: a habit he ticks, never one that asks for a photo",
   changes([{ action: "set", title: "Pastilla", activities: [], metric: "km", target: 1, period: "day", proof: "photo" }]),
-  [{ action: "set", id: null, title: "Pastilla", activities: [], metric: "sessions", target: 1, period: "day", proof: "photo" }],
+  [{ action: "set", id: null, title: "Pastilla", activities: [], metric: "sessions", target: 1, period: "day", proof: "check" }],
 );
 check(
   "a habit is never auto: nothing would ever count it",
@@ -37,6 +37,18 @@ check(
   { action: "set", id: null, title: "Gimnasio, fuerza", activities: ["gym"], metric: "sessions", target: 3, period: "week", proof: "auto" },
 );
 check("a set without a target is not a commitment", changes([{ action: "set", activities: ["gym"] }]), []);
+check(
+  "«2 litros de agua al día»: litres, counted from what he drinks, never ticked",
+  changes([{ action: "set", activities: ["water"], metric: "liters", target: 2, proof: "check" }]),
+  [{ action: "set", id: null, title: "Agua", activities: ["water"], metric: "liters", target: 2, period: "day", proof: "auto" }],
+);
+check(
+  "litres with no activity is water, and always a day's",
+  changes([{ action: "set", id: 4, title: "Hidratación", metric: "liters", target: "2.5", period: "week" }])[0],
+  { action: "set", id: 4, title: "Hidratación", activities: ["water"], metric: "liters", target: 2.5, period: "day", proof: "auto" },
+);
+check("water with a sport is a mistake", changes([{ action: "set", activities: ["water", "gym"], metric: "liters", target: 2 }]), []);
+check("20 litres a day is a mistake", changes([{ action: "set", activities: ["water"], metric: "liters", target: 20 }]), []);
 check("«quita lo de correr»", changes([{ action: "stop", activities: ["run"] }]), [{ action: "stop", id: null, activities: ["run"] }]);
 check("«deja lo de leer»: by its id", changes([{ action: "stop", id: 7 }]), [{ action: "stop", id: 7, activities: [] }]);
 check("a stop that names nothing stops nothing", changes([{ action: "stop" }]), []);

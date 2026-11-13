@@ -87,6 +87,44 @@ export async function videoFrames(bytes: Buffer): Promise<{ second: number; jpeg
   }
 }
 
+/** Frames per contact sheet: five across, four down. */
+export const ACROSS = 5;
+export const PER_SHEET = 20;
+
+/**
+ * The frames twenty to a picture, in order, left to right and top to bottom.
+ * 384 px on the long side, five across: a phone video, upright, makes a sheet
+ * of 1.096 × 1.556 px, inside the 1.568 the model reads without shrinking.
+ * One sheet is ~2.200 tokens where its twenty frames one by one are ~6.000
+ * (22-oct-2026).
+ */
+export async function contactSheets(frames: { second: number; jpeg: Buffer }[]): Promise<{ seconds: number[]; jpeg: Buffer }[]> {
+  const { default: ffmpeg } = (await import("ffmpeg-static")) as unknown as { default: string | null };
+  if (!ffmpeg) throw new Error("ffmpeg-static has no binary for this platform");
+  const dir = await mkdtemp(join(tmpdir(), "salud-hoja-"));
+  try {
+    await Promise.all(frames.map((f, i) => writeFile(join(dir, `f${String(i + 1).padStart(3, "0")}.jpg`), f.jpeg)));
+    await run(ffmpeg, [
+      "-hide_banner",
+      "-loglevel", "error",
+      "-framerate", "1",
+      "-i", join(dir, "f%03d.jpg"),
+      "-vf", `scale='if(gt(iw,ih),384,-2)':'if(gt(iw,ih),-2,384)',tile=${ACROSS}x${PER_SHEET / ACROSS}:padding=4:color=white`,
+      "-q:v", "4",
+      join(dir, "s%02d.jpg"),
+    ]);
+    const names = (await readdir(dir)).filter((f) => f.startsWith("s")).sort();
+    return Promise.all(
+      names.map(async (name, i) => ({
+        seconds: frames.slice(i * PER_SHEET, (i + 1) * PER_SHEET).map((f) => f.second),
+        jpeg: await readFile(join(dir, name)),
+      })),
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 /** What the model reads as a picture. An iPhone photo sent as a file is HEIC: neither the model nor this ffmpeg opens it. */
 export const READABLE = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 

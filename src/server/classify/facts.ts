@@ -73,6 +73,7 @@ export const FACT_FIELDS = {
         sets: { type: "number" },
         reps: { type: "number" },
         weight_kg: { type: "number" },
+        seconds: { type: "number", description: "Held still (wall sit, plank): how long, with no reps." },
       },
       required: ["name"],
     },
@@ -172,15 +173,17 @@ const rawFact = z.object({
   caffeine: z.boolean().optional().catch(undefined),
   training: z.string().optional(),
   exercises: z
-    .array(z.object({ name: z.string(), sets: num, reps: num, weight_kg: num }))
+    .array(z.object({ name: z.string(), sets: num, reps: num, weight_kg: num, seconds: num }))
     .optional()
     .catch(undefined),
   distance_km: num,
   medical: z.string().optional(),
   kcal: num,
   protein_g: num,
+  water_ml: z.coerce.number().positive().max(5000).optional().catch(undefined),
   foods: z.unknown().optional(),
   like: z.coerce.number().int().positive().optional().catch(undefined),
+  rutina: z.coerce.number().int().positive().optional().catch(undefined),
   weight_kg: num,
   body_fat_pct: num,
   tipo: z.string().trim().min(1).max(40).optional().catch(undefined),
@@ -240,6 +243,7 @@ export function parseFacts(input: unknown): FactOutput[] {
       data.caffeine = v.caffeine;
       data.kcal = v.kcal;
       data.proteinG = v.protein_g;
+      data.waterMl = v.water_ml === undefined ? undefined : Math.round(v.water_ml);
       const foods = parseFoods(v.foods);
       if (foods) Object.assign(data, withFoods(data, foods));
     }
@@ -250,7 +254,9 @@ export function parseFacts(input: unknown): FactOutput[] {
         sets: e.sets,
         reps: e.reps,
         weightKg: e.weight_kg,
+        seconds: e.seconds,
       }));
+      data.routineId = v.rutina;
       data.distanceKm = v.distance_km;
       data.name = v.tipo;
     }

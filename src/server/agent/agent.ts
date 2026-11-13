@@ -40,7 +40,8 @@ export async function runAgent(input: {
     try {
       message = await client.messages.create({
         model: DEFAULT_MODEL,
-        max_tokens: 2_000,
+        // A whole protocol in one message is six products in one call: 2.000 cut it (21-oct-2026).
+        max_tokens: 8_000,
         // Tools, then the rules: the fixed part, cached. His data goes after the cut.
         system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
         tools: TOOLS,

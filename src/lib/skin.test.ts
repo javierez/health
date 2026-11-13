@@ -30,6 +30,8 @@ check("some nights a week", whenText(retinol, routineOf(retinol, list)), "3 noch
 check("one night", whenText(retinol, habit("Retinol", 1, "week")), "1 noche por semana");
 check("no habit yet, just the moment", whenText(retinol, null), "Noche");
 check("nothing to say", whenText(serum, null), null);
+check("a supplement slot says its routine", whenText({ moment: "media mañana" }, null), "Media mañana");
+check("a cleanser twice a day", whenText({ moment: "mañana y noche" }, null), "Cada mañana y cada noche");
 
 check(
   "a solar gets the sun lines and the sleep one",

@@ -2,7 +2,7 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "~/db";
-import { products, type Product, type ProductInfo } from "~/db/schema";
+import { products, VERDICTS, type Product, type ProductInfo } from "~/db/schema";
 import { sinRayas } from "~/lib/sin-rayas";
 import { later } from "~/server/kinds";
 import { research } from "~/server/web-research";
@@ -12,7 +12,7 @@ import { research } from "~/server/web-research";
  * in it and does something, what to watch, how to use it, with its sources.
  * One Sonnet call with web search, once per product, after the reply.
  */
-export const PROMPT_VERSION = "product-info-v1";
+export const PROMPT_VERSION = "product-info-v3";
 const MAX_ATTEMPTS = 3;
 const STALE_MS = 5 * 60_000;
 
@@ -24,6 +24,7 @@ Busca primero en Open Beauty Facts u Open Food Facts, INCIDecoder, la web de la 
 - Ingredientes tal cual en el envase (INCI en las cremas), en orden.
 - Activos: solo los que hacen algo, cada uno con lo que hace en pocas palabras.
 - Ojo con: irritantes, interacciones, dosis máximas, cafeína, alcohol. Nada si no hay nada.
+- Un suplemento, además, evidencia: busca revisiones y ensayos en humanos (PubMed, Cochrane, EFSA, Examine) sobre lo que se toma para. veredicto «funciona» si lo apoyan metaanálisis o varios ensayos; «a medias» si el efecto es pequeño, solo en algunos o con pocos estudios; «sin pruebas» si no hay ensayos o salen nulos. linea: qué dicen, en una o dos frases, con el estudio más fuerte nombrado corto ("Kreider 2017, revisión ISSN"). dosis, nunca vacía y en 250 caracteres como mucho: la estudiada ("3 a 5 g al día") y, si te paso lo que toma él, si la suya está por encima, dentro o por debajo y qué cambia ("La tuya, 8 a 10 g, no suma más músculo; más molestias de tripa"). Si no te paso lo que toma, solo la estudiada: nunca le supongas una dosis. Una crema, sin evidencia.
 - Español, frases cortas. Nunca uses rayas largas ni medias.`;
 
 const FICHA = {
@@ -40,6 +41,12 @@ const FICHA = {
       ingredientes: { type: "array", items: { type: "string" } },
       ojo: { type: "array", items: { type: "string" } },
       uso: { type: "string", description: "Cómo y cuándo, en una línea." },
+      evidencia: {
+        type: "object",
+        description: "Solo un suplemento.",
+        properties: { veredicto: { type: "string", enum: [...VERDICTS] }, linea: { type: "string" }, dosis: { type: "string" } },
+        required: ["veredicto", "linea", "dosis"],
+      },
       fuentes: {
         type: "array",
         items: { type: "object", properties: { titulo: { type: "string" }, url: { type: "string" } }, required: ["titulo", "url"] },
@@ -65,6 +72,7 @@ const fichaSchema = z.object({
   ingredientes: list(text(120)),
   ojo: list(text(240)),
   uso: z.string().trim().max(240).catch(""),
+  evidencia: z.object({ veredicto: z.enum(VERDICTS), linea: z.string().trim().min(1).transform((t) => t.slice(0, 400)), dosis: z.string().trim().catch("").transform((t) => t.slice(0, 400)) }).nullable().catch(null).default(null),
   fuentes: list(z.object({ titulo: text(160), url: z.string().url().startsWith("http") })),
 });
 
@@ -78,13 +86,14 @@ export function parseInfo(input: unknown): ProductInfo | null {
     ingredients: f.data.ingredientes.slice(0, 80),
     cautions: f.data.ojo.slice(0, 5).map(sinRayas),
     use: sinRayas(f.data.uso),
+    evidence: f.data.evidencia ? { verdict: f.data.evidencia.veredicto, line: sinRayas(f.data.evidencia.linea), dose: sinRayas(f.data.evidencia.dosis) } : null,
     sources: f.data.fuentes.slice(0, 5).map((s) => ({ title: sinRayas(s.titulo), url: s.url })),
   };
 }
 
 /** What changes per product, after the cache cut. */
 const ask = (p: Pick<Product, "name" | "brand" | "area" | "ingredient">) =>
-  `Producto: ${p.name}${p.brand ? `, de ${p.brand}` : ""} (${p.area}).${p.ingredient ? ` En la etiqueta: ${p.ingredient}.` : ""}`;
+  `Producto: ${p.name}${p.brand ? `, de ${p.brand}` : ""} (${p.area}).${p.ingredient ? ` ${p.area === "suplemento" ? "Lo que toma" : "En la etiqueta"}: ${p.ingredient}.` : ""}`;
 
 export async function lookup(p: Pick<Product, "name" | "brand" | "area" | "ingredient">): Promise<ProductInfo> {
   const info = parseInfo(await research(SYSTEM, FICHA, ask(p)));

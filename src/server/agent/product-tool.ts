@@ -23,7 +23,7 @@ import type { TurnState } from "./tools";
 export const PRODUCT_TOOL: Anthropic.Tool = {
   name: "producto",
   description:
-    "Guarda una crema o un suplemento que enseña en foto, apunta que lo ha usado hoy, lo pone en su rutina de mañana, de noche o de antes de entrenar (lo que se echa o toma a la vez y marca de un toque, sin foto), o retira uno que ya no usa.",
+    "Guarda una crema o un suplemento que enseña en foto o dice por su nombre, apunta que lo ha usado hoy, lo pone en su rutina (en ayunas, mañana, media mañana, noche o antes de entrenar: lo que se echa o toma a la vez y marca de un toque, sin foto), o retira uno que ya no usa.",
   input_schema: {
     type: "object",
     properties: {
@@ -38,7 +38,7 @@ export const PRODUCT_TOOL: Anthropic.Tool = {
             categoria: { type: "string", enum: [...SKIN_CATEGORIES], description: "Solo cremas; lo demás, otro." },
             spf: { type: "number" },
             activo: { type: "string", description: "El activo y su dosis, si salen: «Retinol 0,3 %», «Magnesio 300 mg»." },
-            momento: { type: "string", enum: [...MOMENTS], description: "Su rutina, si dice cuándo lo usa cada día." },
+            momento: { type: "string", enum: [...MOMENTS], description: "Su rutina, si dice cuándo lo usa cada día; mañana y noche si lo usa en las dos (un limpiador)." },
             hoy: { type: "boolean", description: "true si lo acaba de usar o tomar." },
           },
           required: ["nombre", "area"],
@@ -47,10 +47,11 @@ export const PRODUCT_TOOL: Anthropic.Tool = {
       usar: { type: "array", items: { type: "integer" }, description: "Los [id] de sus productos que ha usado hoy." },
       rutina: {
         type: "array",
-        description: "«El sérum y el contorno por la mañana», «la creatina antes de entrenar»: sus [id] a esa rutina, o fuera de rutina con ninguna.",
+        description:
+          "«El sérum y el contorno por la mañana», «la creatina a media mañana, 10 g»: sus [id] a esa rutina, o fuera de rutina con ninguna; activo si cambia la dosis.",
         items: {
           type: "object",
-          properties: { id: { type: "integer" }, momento: { type: "string", enum: [...MOMENTS, "ninguna"] } },
+          properties: { id: { type: "integer" }, momento: { type: "string", enum: [...MOMENTS, "ninguna"] }, activo: { type: "string" } },
           required: ["id", "momento"],
         },
       },
@@ -105,14 +106,20 @@ export function parseProducts(input: unknown): NewProduct[] {
   });
 }
 
-const move = z.object({ id: z.coerce.number().int().positive(), momento: z.enum([...MOMENTS, "ninguna"]) });
+const move = z.object({
+  id: z.coerce.number().int().positive(),
+  momento: z.enum([...MOMENTS, "ninguna"]),
+  activo: z.string().trim().min(1).max(200).optional().catch(undefined),
+});
 
-/** «El sérum por la mañana»: one bad entry drops that entry, not the rest. */
-export function parseMoves(input: unknown): { id: number; moment: Moment | null }[] {
+/** «El sérum por la mañana», «la creatina, ahora 10 g»: one bad entry drops that entry, not the rest. */
+export function parseMoves(input: unknown): { id: number; moment: Moment | null; ingredient?: string }[] {
   const list = (input as { rutina?: unknown } | null)?.rutina;
   return (Array.isArray(list) ? list : []).flatMap((item) => {
     const m = move.safeParse(item);
-    return m.success ? [{ id: m.data.id, moment: m.data.momento === "ninguna" ? null : m.data.momento }] : [];
+    if (!m.success) return [];
+    const ingredient = m.data.activo ? { ingredient: sinRayas(m.data.activo) } : {};
+    return [{ id: m.data.id, moment: m.data.momento === "ninguna" ? null : m.data.momento, ...ingredient }];
   });
 }
 
@@ -167,7 +174,7 @@ export async function runProduct(input: unknown, s: TurnState): Promise<string> 
   for (const m of parseMoves(input)) {
     const [row] = await db
       .update(products)
-      .set({ moment: m.moment })
+      .set({ moment: m.moment, ...(m.ingredient ? { ingredient: m.ingredient } : {}) })
       .where(and(eq(products.id, m.id), isNull(products.retiredAt)))
       .returning({ name: products.name, moment: products.moment });
     if (row) moved.push(row);
@@ -186,7 +193,7 @@ export async function runProduct(input: unknown, s: TurnState): Promise<string> 
     ...added.map(
       (p) =>
         `[${p.id}] ${p.name}: guardado. Busco su ficha en internet y le dibujo su icono; en un minuto está en el panel.` +
-        (p.moment ? ` Va en «${where(p)}».` : " Si la usa a diario, pregúntale si es de mañana, de noche o de antes de entrenar y ponla en esa rutina (rutina), sin foto."),
+        (p.moment ? ` Va en «${where(p)}».` : " Si lo usa a diario, pregúntale en qué momento y ponlo en esa rutina (rutina), sin foto."),
     ),
     ...used.map((p) => `Apuntado hoy: ${p.name}.`),
     ...moved.map((p) => `${p.name}: ${where(p)}. La rutina se marca entera de un toque.`),

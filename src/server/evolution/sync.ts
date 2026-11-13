@@ -16,17 +16,26 @@ import { toRow } from "./records";
  */
 export async function syncWhatsapp(now = new Date()) {
   const errors: string[] = [];
-  const [last] = await db.select({ at: sql<Date | null>`max(${waMessages.at})` }).from(waMessages);
-  // A day of overlap: a message can land in Evolution after a newer one.
-  const stopBefore = last?.at ? new Date(new Date(last.at).getTime() - 86_400_000) : null;
-  // The first time, the newest 5,000; the rest of the history is `scripts/import-whatsapp.ts`.
-  const imported = await importMessages({ stopBefore, maxPages: 100 }).catch((err: unknown) => {
+  const imported = await catchUpMessages().catch((err: unknown) => {
     errors.push(`import: ${String(err)}`);
     return null;
   });
   // Yesterday, and one more if a read failed: the backlog is the script's, not a 300 s function's.
   const days = await readDays({ before: localDay(now), limit: 2, errors });
   return { imported, days, errors };
+}
+
+/**
+ * The messages since the last stored, without reading the day: free, no
+ * model. Also before the morning note, so his first message of the morning
+ * is there to say how long the night could have been (`quietNight`).
+ */
+export async function catchUpMessages() {
+  const [last] = await db.select({ at: sql<Date | null>`max(${waMessages.at})` }).from(waMessages);
+  // A day of overlap: a message can land in Evolution after a newer one.
+  const stopBefore = last?.at ? new Date(new Date(last.at).getTime() - 86_400_000) : null;
+  // The first time, the newest 5,000; the rest of the history is `scripts/import-whatsapp.ts`.
+  return importMessages({ stopBefore, maxPages: 100 });
 }
 
 /** Pages newest first until past `stopBefore` (or the end). Rows already here only gain a body they lacked. */

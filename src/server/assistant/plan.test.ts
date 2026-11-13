@@ -1,4 +1,4 @@
-import { bedtimePlan, clock, dueMessages, type Night } from "./plan";
+import { bandSilentSince, bedtimePlan, quietNight, clock, dueMessages, nightOver, nightsInARowUnder, type Night } from "./plan";
 
 let passed = 0;
 const failures: string[] = [];
@@ -45,42 +45,91 @@ check("45 min past the ideal: no step, the ideal", clock(plan.bedMinutes), "23:0
 const none = new Set<string>();
 check(
   "35 min before bedtime: due, keyed on the evening",
-  dueMessages(at("2026-10-14T20:25:00Z"), { plan, lastWake: null, sent: none }),
+  dueMessages(at("2026-10-14T20:25:00Z"), { plan, lastWake: null, seen: null, sent: none }),
   [{ kind: "bedtime", day: "2026-10-14" }],
 );
 check(
   "an hour before: not yet",
-  dueMessages(at("2026-10-14T19:55:00Z"), { plan, lastWake: null, sent: none }),
+  dueMessages(at("2026-10-14T19:55:00Z"), { plan, lastWake: null, seen: null, sent: none }),
   [],
 );
 check(
   "already sent tonight: never twice",
-  dueMessages(at("2026-10-14T20:45:00Z"), { plan, lastWake: null, sent: new Set(["bedtime:2026-10-14"]) }),
+  dueMessages(at("2026-10-14T20:45:00Z"), { plan, lastWake: null, seen: null, sent: new Set(["bedtime:2026-10-14"]) }),
   [],
 );
 
 const late = bedtimePlan([night("2026-10-14T07:30:00Z", 480)]); // wake 09:30 → bed 01:15
 check(
   "bedtime after midnight still belongs to the evening before",
-  dueMessages(at("2026-10-14T23:00:00Z"), { plan: late, lastWake: null, sent: none }),
+  dueMessages(at("2026-10-14T23:00:00Z"), { plan: late, lastWake: null, seen: null, sent: none }),
   [{ kind: "bedtime", day: "2026-10-14" }],
 );
 
 check(
   "morning: 25 min after waking",
-  dueMessages(at("2026-10-15T06:05:00Z"), { plan, lastWake: at("2026-10-15T05:40:00Z"), sent: none }),
+  dueMessages(at("2026-10-15T06:05:00Z"), { plan, lastWake: at("2026-10-15T05:40:00Z"), seen: at("2026-10-15T06:00:00Z"), sent: none }),
   [{ kind: "morning", day: "2026-10-15" }],
 );
 check(
   "morning: 10 min after waking is too soon",
-  dueMessages(at("2026-10-15T05:50:00Z"), { plan, lastWake: at("2026-10-15T05:40:00Z"), sent: none }),
+  dueMessages(at("2026-10-15T05:50:00Z"), { plan, lastWake: at("2026-10-15T05:40:00Z"), seen: at("2026-10-15T05:50:00Z"), sent: none }),
+  [],
+);
+check(
+  "morning: a night sent while he sleeps is not a wake, however long ago",
+  dueMessages(at("2026-10-22T03:20:00Z"), { plan, lastWake: at("2026-10-22T02:53:00Z"), seen: at("2026-10-22T02:58:00Z"), sent: none }),
   [],
 );
 check(
   "morning without WHOOP: at 10:00",
-  dueMessages(at("2026-10-15T08:00:00Z"), { plan, lastWake: null, sent: none }),
+  dueMessages(at("2026-10-15T08:00:00Z"), { plan, lastWake: null, seen: null, sent: none }),
   [{ kind: "morning", day: "2026-10-15" }],
 );
+
+// 22-oct-2026, his usual wake-up 09:25: the night "ended" at 04:53 (02:53Z), a push at 05:20 saw it.
+const his = bedtimePlan([night("2026-10-21T07:25:00Z"), night("2026-10-20T07:20:00Z"), night("2026-10-19T07:30:00Z")]);
+check("his usual wake-up", clock(his.wakeMinutes), "09:25");
+check(
+  "22-oct: the night so far at 04:53, seen at 05:20, is not a morning",
+  dueMessages(at("2026-10-22T03:20:00Z"), { plan: his, lastWake: at("2026-10-22T02:53:00Z"), seen: at("2026-10-22T03:20:00Z"), sent: none }),
+  [],
+);
+check(
+  "22-oct: the real end at 08:40, seen at 09:05, is",
+  dueMessages(at("2026-10-22T07:05:00Z"), { plan: his, lastWake: at("2026-10-22T06:40:00Z"), seen: at("2026-10-22T07:05:00Z"), sent: none }),
+  [{ kind: "morning", day: "2026-10-22" }],
+);
+check(
+  "22-oct: with the band silent, 10:00 still sends it",
+  dueMessages(at("2026-10-22T08:00:00Z"), { plan: his, lastWake: at("2026-10-22T02:53:00Z"), seen: at("2026-10-22T03:20:00Z"), sent: none }),
+  [{ kind: "morning", day: "2026-10-22" }],
+);
+check("an early wake for a train (06:30) looks like the night so far: not over at 07:00", nightOver(at("2026-10-23T04:30:00Z"), at("2026-10-23T05:00:00Z"), his.wakeMinutes, at("2026-10-23T05:00:00Z")), false);
+check("…and over at 10:00", nightOver(at("2026-10-23T04:30:00Z"), at("2026-10-23T05:00:00Z"), his.wakeMinutes, at("2026-10-23T08:00:00Z")), true);
+check("…and over the next day", nightOver(at("2026-10-23T04:30:00Z"), at("2026-10-23T05:00:00Z"), his.wakeMinutes, at("2026-10-24T01:00:00Z")), true);
+check("never over while the band has not seen him up", nightOver(at("2026-10-23T06:40:00Z"), at("2026-10-23T06:50:00Z"), his.wakeMinutes, at("2026-10-23T09:00:00Z")), false);
+
+// 26-oct-2026, newest first: 6 h 39, 7 h 31, 6 h 53, 7 h 06, 6 h 55, 6 h 39. The note said «sexta noche seguida».
+check("one night under 7 h, not six", nightsInARowUnder([399, 451, 413, 426, 415, 399]), 1);
+check("a run of three", nightsInARowUnder([399, 413, 415, 451]), 3);
+check("all of them", nightsInARowUnder([399, 413]), 2);
+check("an unknown night ends the run", nightsInARowUnder([399, null, 399]), 1);
+check("last night was long", nightsInARowUnder([480, 399]), 0);
+
+// 31-oct to 7-nov-2026: Edge kept posting, but no night after 31-oct (ended 09:28, needed 9 h 31).
+const stale = [night("2026-10-31T08:28:00Z", 571)];
+check("silent band: the last night's end", bandSilentSince(stale, at("2026-11-06T09:00:00Z"))?.toISOString(), "2026-10-31T08:28:00.000Z");
+check("a night that ended this morning is not silence", bandSilentSince(stale, at("2026-10-31T22:00:00Z")), null);
+check("no nights at all is not silence", bandSilentSince([], at("2026-11-06T09:00:00Z")), null);
+check("silent band: tonight's need is not the week-old one", bedtimePlan(stale, null, at("2026-11-06T22:00:00Z")).needMinutes, 480);
+check("fresh band: the latest night's need", bedtimePlan(stale, null, at("2026-10-31T22:00:00Z")).needMinutes, 571);
+
+// His messages on the night to 6-nov-2026 (Madrid UTC+1): 23:22, then 08:23. The 01:10 one ends the evening.
+const msgs = [at("2026-11-05T19:00:00Z"), at("2026-11-05T22:22:00Z"), at("2026-11-06T07:23:00Z"), at("2026-11-06T09:00:00Z")];
+check("quiet night: last message → first one", quietNight(msgs, "2026-11-06")?.minutes, 541);
+check("a message at 01:10 is still the evening", quietNight([...msgs, at("2026-11-06T00:10:00Z")], "2026-11-06")?.minutes, 433);
+check("no message in the morning yet: nothing", quietNight([at("2026-11-05T22:22:00Z")], "2026-11-06"), null);
 
 console.log(`${passed} passed, ${failures.length} failed`);
 for (const f of failures) console.error(`  ✗ ${f}`);

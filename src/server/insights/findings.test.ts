@@ -26,6 +26,7 @@ const base: Day = {
   bed: 25 * 60 + 30,
   slept: 400,
   debt: 0,
+  bedShift: null,
   recovery: 55,
   hrv: 42,
   rhr: 55,
@@ -35,6 +36,11 @@ const base: Day = {
   cardio: false,
   lateWorkout: false,
   strain: 10,
+  steps: null,
+  moderateMin: null,
+  vigorousMin: null,
+  activeWeek: null,
+  stress: null,
   lines: 9000,
   lateCode: false,
   sent: 100,
@@ -46,6 +52,8 @@ const base: Day = {
   tenseTopics: null,
   business: null,
   social: null,
+  family: null,
+  friends: null,
   alcohol: null,
   caffeine: null,
   lateCaffeine: null,
@@ -147,6 +155,13 @@ const creatine = findings([
 const took = every(creatine.by.recovery).find((x) => x.key === "product-creatina");
 check("product: compared only from its first day", took?.groups.map((g) => g.values.length), [15, 15]);
 check("product: good when he took it", [took?.tier, took?.todo], ["good", { verb: "haz", action: "sigue con Creatina" }]);
+
+// Creatine every day has no day without: his six weeks before against his days from a week in.
+const daily = findings([...dated(many(30, { recovery: 50 }), "06"), ...dated(many(31, { products: ["Creatina"], recovery: 62 }), "07")]);
+const since = every(daily.by.recovery).find((x) => x.key === "since-creatina");
+check("since: the weeks before against the days from a week in", since?.groups.map((g) => g.values.length), [24, 30]);
+check("since: good, and it says it is before and after", [since?.tier, since?.title], ["good", "Desde que tomas Creatina (antes y después)"]);
+check("since: no days without, so days with and without has nothing", every(daily.by.recovery).some((x) => x.key === "product-creatina"), false);
 
 // A habit he ticks («Leer 20 min»): the same, from the first day he ticked it.
 const reading = findings([

@@ -8,8 +8,10 @@ import { type Part } from "~/server/agent/parts";
 import { agentTurn } from "~/server/agent/turn";
 import { markRead, sendText } from "~/server/assistant/whatsapp";
 import { syncEverything } from "~/server/sync-all";
+import { knownExercises } from "~/server/training/routines";
 import { downloadMedia, READABLE, shrink, transcribe, videoFrames } from "./media";
 import { keepPhotos } from "./photos";
+import { readVideo } from "./video-read";
 
 /**
  * The 621's webhook, as Vesta forwards it: Meta's payload untouched. Only his
@@ -238,7 +240,8 @@ async function toParts(m: WaMessage): Promise<Part[] | Problem> {
   }
   if (m.type === "video" && m.video?.id) {
     const { bytes } = await downloadMedia(m.video.id);
-    return [{ kind: "frames", frames: await videoFrames(bytes) }, ...text];
+    const [frames, known] = await Promise.all([videoFrames(bytes), knownExercises()]);
+    return [await readVideo(frames, known), ...text];
   }
   if (m.type === "audio" && m.audio?.id) {
     const { bytes, mime } = await downloadMedia(m.audio.id);

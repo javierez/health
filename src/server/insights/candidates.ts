@@ -5,6 +5,7 @@ import { SOURCES, type Source } from "~/server/assistant/evidence";
 
 import type { Day } from "./days";
 import type { OutcomeKey } from "./outcomes";
+import { bandCandidates } from "./candidates-band";
 import { quantile } from "./stats";
 
 /**
@@ -50,10 +51,17 @@ const clock = (line: number) => {
   const m = line % 1440;
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 };
-const num = (n: number) => Math.round(n).toLocaleString("es-ES");
+export const num = (n: number) => Math.round(n).toLocaleString("es-ES");
+
+/** Each name's first day, oldest first. */
+export function firstDaysOf(days: Day[], of: (d: Day) => string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const d of days) for (const name of of(d)) if (!out.has(name)) out.set(name, d.day);
+  return out;
+}
 
 /** His own lower and upper third of a measure, so «mucho» means much for him. */
-function thirds(days: Day[], value: (d: Day) => number | null): [number, number] | null {
+export function thirds(days: Day[], value: (d: Day) => number | null): [number, number] | null {
   const xs = days.flatMap((d) => {
     const v = value(d);
     return v === null ? [] : [v];
@@ -62,7 +70,7 @@ function thirds(days: Day[], value: (d: Day) => number | null): [number, number]
 }
 
 /** The high third against the low one. */
-function high(value: (d: Day) => number | null, [lo, hi]: [number, number]) {
+export function high(value: (d: Day) => number | null, [lo, hi]: [number, number]) {
   return (d: Day) => {
     const v = value(d);
     return v === null ? null : v > hi ? true : v <= lo ? false : null;
@@ -416,11 +424,7 @@ export function candidates(days: Day[]): Candidate[] {
   }
 
   // What he takes, his habits and his own things: each judged from its first day, so the days before it do not count as without.
-  const firstDays = (of: (d: Day) => string[]) => {
-    const out = new Map<string, string>();
-    for (const d of days) for (const name of of(d)) if (!out.has(name)) out.set(name, d.day);
-    return out;
-  };
+  const firstDays = (of: (d: Day) => string[]) => firstDaysOf(days, of);
   for (const [name, first] of firstDays((d) => d.products)) {
     add({
       key: `product-${kindKey(name)}`,
@@ -458,5 +462,6 @@ export function candidates(days: Day[]): Candidate[] {
       bad: { verb: "haz", action: `los días con «${name}», acuéstate antes y entrena suave` },
     });
   }
+  out.push(...bandCandidates(days));
   return out;
 }

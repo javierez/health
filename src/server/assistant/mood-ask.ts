@@ -16,5 +16,6 @@ const MAX = 700;
 export function withMoodAsk(text: string, kind: MessageKind, lastMood: Date | null, now: Date): string {
   if (!ASKED_IN.includes(kind)) return text;
   if (lastMood && now.getTime() - lastMood.getTime() < FRESH_MS) return text;
-  return `${text.slice(0, MAX - MOOD_QUESTION.length - 1).trim()} ${MOOD_QUESTION}`;
+  // Under a note with its list, the question goes on a line of its own.
+  return `${text.slice(0, MAX - MOOD_QUESTION.length - 1).trim()}${text.includes("\n") ? "\n" : " "}${MOOD_QUESTION}`;
 }

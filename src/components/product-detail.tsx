@@ -22,7 +22,7 @@ export const AREA: Record<ProductArea, string> = { piel: "Piel", suplemento: "Su
  * also gets its routine and what the evidence says.
  */
 export function ProductDetail({ p, list, today }: { p: ProductView; list: Standing[]; today: string }) {
-  const routine = p.area === "piel" ? routineOf(p, list) : null;
+  const routine = routineOf(p, list);
   const info = p.info;
   return (
     <div className="space-y-4">
@@ -32,7 +32,7 @@ export function ProductDetail({ p, list, today }: { p: ProductView; list: Standi
           <p className="truncate text-sm text-gray-700">
             {[p.brand, AREA[p.area], p.spf ? `SPF ${p.spf}` : null, p.ingredient].filter(Boolean).join(" · ")}
           </p>
-          <p className="text-xs text-gray-500">{p.area === "piel" ? (whenText(p, routine) ?? "Aún sin rutina: dímelo en el chat") : used(p)}</p>
+          <p className="text-xs text-gray-500">{p.area === "piel" || p.moment ? (whenText(p, routine) ?? "Aún sin rutina: dímelo en el chat") : used(p)}</p>
         </div>
         {routine ? <MiniWeek s={routine} today={today} /> : null}
       </div>
@@ -42,6 +42,14 @@ export function ProductDetail({ p, list, today }: { p: ProductView; list: Standi
       {info ? (
         <div className="space-y-3">
           <p className="text-sm text-gray-900">{info.summary}</p>
+          {info.evidence ? (
+            <Section label="Lo que dice la evidencia">
+              <p className="text-sm text-gray-700">
+                <b className="font-medium text-gray-900">{info.evidence.verdict.charAt(0).toUpperCase() + info.evidence.verdict.slice(1)}</b>. {info.evidence.line}
+              </p>
+              {info.evidence.dose ? <p className="mt-0.5 text-xs text-gray-500">{info.evidence.dose}</p> : null}
+            </Section>
+          ) : null}
           {info.actives.length > 0 ? (
             <Section label="Lo que hace">
               <ul className="space-y-1">

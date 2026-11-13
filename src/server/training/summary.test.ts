@@ -1,5 +1,5 @@
 import type { FactData } from "~/db/schema";
-import { minutesIn, setsText, summarize, type TrainingFact } from "./summary";
+import { minutesIn, setsOf, setsText, summarize, type Session, type TrainingFact } from "./summary";
 
 let passed = 0;
 const failures: string[] = [];
@@ -9,13 +9,20 @@ function check(name: string, actual: unknown, expected: unknown) {
   else failures.push(`${name}\n    expected ${JSON.stringify(expected)}\n    got      ${JSON.stringify(actual)}`);
 }
 
+/** A session's lines as they read: name and text. */
+const read = (s: Session) => s.lines.map(({ name, text }) => ({ name, text }));
 const gym = (day: string, exercises: FactData["exercises"], summary = "Gimnasio"): TrainingFact => ({ day, summary, data: { training: "gym", exercises } });
 
 check("same sets together", setsText([{ name: "Press banca", sets: 3, reps: 8, weightKg: 80 }]), "3×8 · 80 kg");
 check("a video per set adds up", setsText([1, 2, 3].map(() => ({ name: "Sentadilla", sets: 1, reps: 6, weightKg: 100 }))), "3×6 · 100 kg");
 check("ramped sets one by one", setsText([{ name: "Press banca", sets: 1, reps: 8, weightKg: 80 }, { name: "Press banca", sets: 1, reps: 6, weightKg: 85 }, { name: "Press banca", sets: 1, reps: 4, weightKg: 87.5 }]), "80 kg ×8 · 85 kg ×6 · 87,5 kg ×4");
 check("bodyweight", setsText([{ name: "Dominadas", sets: 4, reps: 10 }]), "4×10");
+check("a hold, by seconds", setsText([{ name: "Sentadilla isométrica en pared", sets: 3, seconds: 30 }]), "3×30 s");
+check("holds of different lengths", setsText([{ name: "Plancha", sets: 1, seconds: 30 }, { name: "Plancha", sets: 1, seconds: 45 }]), "30 s · 45 s");
 check("no reps said", setsText([{ name: "Remo", sets: 3, weightKg: 60 }]), "3 series · 60 kg");
+check("pills: one per set", setsOf([{ name: "Press banca", sets: 2, reps: 8, weightKg: 80 }, { name: "Press banca", sets: 1, reps: 6, weightKg: 85 }]), ["80 kg ×8", "80 kg ×8", "85 kg ×6"]);
+check("pills: holds and bodyweight", setsOf([{ name: "Sentadilla isométrica en pared", sets: 2, seconds: 45 }, { name: "Zancada", sets: 1, reps: 10 }]), ["45 s", "45 s", "×10"]);
+check("pills: nothing to say per set", setsOf([{ name: "Oso a pica", sets: 3 }]), []);
 
 const t = summarize(
   [
@@ -28,9 +35,9 @@ const t = summarize(
   "2026-10-18",
 );
 check("newest session first", t.sessions.map((s) => s.day), ["2026-10-17", "2026-10-16", "2026-10-12", "2026-10-09", "2026-08-20"]);
-check("one line per exercise, names merged", t.sessions[1]!.lines, [{ name: "Press banca", text: "80 kg ×8 · 85 kg ×5" }, { name: "Dominadas", text: "3×8" }]);
+check("one line per exercise, names merged", read(t.sessions[1]!), [{ name: "Press banca", text: "80 kg ×8 · 85 kg ×5" }, { name: "Dominadas", text: "3×8" }]);
 check("a leg day told in words", t.sessions[2]!.said, ["Gimnasio: pierna"]);
-check("a run becomes a line", [t.sessions[0]!.lines, t.sessions[0]!.said], [[{ name: "Correr", text: "6 km" }], []]);
+check("a run becomes a line", [read(t.sessions[0]!), t.sessions[0]!.said], [[{ name: "Correr", text: "6 km" }], []]);
 
 const round = (n: number | undefined) => (n === undefined ? n : Math.round(n * 100) / 100);
 const zone = (tr: typeof t, z: string) => tr.zones.find((x) => x.zone === z)!;
@@ -54,7 +61,7 @@ check("no weight, no lift", t.lifts.some((l) => l.name === "Dominadas"), false);
 
 check("minutes said", ["Andar 45 min", "Pádel 1 h", "Bici 1,5 horas", "hora y media de paseo", "Correr 6 km"].map(minutesIn), [45, 60, 90, 90, null]);
 const walk = summarize([{ day: "2026-10-17", summary: "Andar 90 min", data: { training: "other" } }], "2026-10-18");
-check("a walk said in minutes", [walk.sessions[0]!.lines, zone(walk, "gemelos").sets], [[{ name: "Andar", text: "90 min" }], 1.5]);
+check("a walk said in minutes", [read(walk.sessions[0]!), zone(walk, "gemelos").sets], [[{ name: "Andar", text: "90 min" }], 1.5]);
 
 // Learned from the web: an exercise the catalog lacks, and a new sport by time.
 const swing = { key: "kettlebell-swing", name: "Kettlebell swing", byTime: false, work: { gluteos: 1, isquios: 1 }, how: "Balanceas la pesa con la cadera.", drawn: true };
@@ -71,7 +78,7 @@ const l = summarize(
 );
 check("a learned exercise counts", zone(l, "gluteos").from, [{ label: "Kettlebell swing", sets: 4 }]);
 check("one still being learned says so", l.sessions[0]!.lines.map((x) => x.learning ?? false), [false, true]);
-check("a learned sport, by its minutes", [l.sessions[1]!.lines, zone(l, "abdomen").sets], [[{ name: "Yoga", text: "60 min" }], 1]);
+check("a learned sport, by its minutes", [read(l.sessions[1]!), zone(l, "abdomen").sets], [[{ name: "Yoga", text: "60 min" }], 1]);
 check("its drawing rides on the lift", l.lifts.find((x) => x.name === "Kettlebell swing")?.move?.key, "kettlebell-swing");
 
 // WHOOP: it brings the minutes; what he said brings the km. No double count.
@@ -86,12 +93,19 @@ const w = summarize(
     { day: "2026-10-12", sport: "activity", minutes: 40 },
   ],
 );
-check("whoop days", w.sessions.map((s) => [s.day, s.lines]), [
+check("whoop days", w.sessions.map((s) => [s.day, read(s)]), [
   ["2026-10-17", [{ name: "Correr", text: "6 km · 30 min" }]],
   ["2026-10-15", [{ name: "Andar", text: "60 min" }]],
   ["2026-10-14", [{ name: "Pesas", text: "45 min" }]],
   ["2026-10-13", [{ name: "Nadar", text: "319 min" }]],
 ]);
+check("minutes: WHOOP's, capped at two hours", w.sessions.map((s) => s.minutes), [30, 60, 45, 120]);
+check("WHOOP's weights are by time", w.sessions[2]!.lines[0]!.sport, true);
+check("minutes he said, without WHOOP", l.sessions[1]!.minutes, 60);
+check("no minutes, none made up", t.sessions[1]!.minutes, null);
+const r = summarize([{ day: "2026-10-21", summary: "Pierna", data: { training: "gym", routineId: 2, exercises: [{ name: "Oso a pica" }] } }], "2026-10-22", [], [swing]);
+check("the routine it belongs to", [r.sessions[0]!.routineId, t.sessions[0]!.routineId], [2, null]);
+check("its drawing rides on the line", l.sessions[0]!.lines[0]!.move?.key, "kettlebell-swing");
 check("a run counted once, by its minutes", zone(w, "cuadriceps").from.map((p) => [p.label, round(p.sets)]), [["Correr", 1], ["Andar", 0.5]]);
 check("an hour walking: calves", zone(w, "gemelos").from.map((p) => [p.label, p.sets]), [["Correr", 1], ["Andar", 1]]);
 check("weights without detail: no muscles", w.zones.some((z) => z.from.some((p) => p.label === "Pesas")), false);

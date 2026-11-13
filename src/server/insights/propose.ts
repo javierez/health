@@ -66,8 +66,9 @@ const TOOL: Anthropic.Tool = {
         items: {
           type: "object",
           properties: {
-            title: { type: "string" },
-            why: { type: "string" },
+            // The same limits `specSchema` holds them to: on 1-nov-2026 a 200+ «why» threw one away.
+            title: { type: "string", maxLength: 60 },
+            why: { type: "string", maxLength: 200 },
             labels: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 },
             when: { type: "array", items: cond, minItems: 1, maxItems: 3 },
             versus: { anyOf: [{ type: "string", enum: ["rest"] }, { type: "array", items: cond, minItems: 1, maxItems: 3 }] },

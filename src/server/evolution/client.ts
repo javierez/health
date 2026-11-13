@@ -15,6 +15,16 @@ function config() {
 
 export const evolutionReady = () => config() !== null;
 
+/**
+ * A 401 is a dead token, not a bad day: every re-scan of the QR in Vesta
+ * deletes and recreates the instance, and Evolution hands it a new token. On
+ * 24-oct-2026 his WhatsApp went unread for two days and nobody was told.
+ */
+export const tokenDead = (errors: string[]) => errors.some((e) => /\bevolution \S+ 401:/.test(e));
+
+export const TOKEN_DEAD =
+  "No puedo leer tu WhatsApp: el token cambió al volver a escanear el QR en Vesta. En el Mac, lanza ~/Desktop/health/scripts/reconectar-whatsapp.sh y recupero lo que falte.";
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   const c = config();
   if (!c) throw new Error("Evolution not configured");

@@ -24,3 +24,17 @@ export function Move({ move, size, className }: { move: Learned; size: number; c
     </span>
   );
 }
+
+/** A session's or a routine's drawings in a row, the rest as «+2». */
+export function Moves({ moves, max = 5 }: { moves: (Learned | null)[]; max?: number }) {
+  const drawn = moves.filter((m): m is Learned => m?.drawn === true);
+  if (drawn.length === 0) return null;
+  return (
+    <span className="mt-1 flex items-center gap-0.5">
+      {drawn.slice(0, max).map((m, i) => (
+        <Move key={`${i}-${m.key}`} move={m} size={28} />
+      ))}
+      {drawn.length > max ? <span className="ml-1 text-xs text-gray-400">+{drawn.length - max}</span> : null}
+    </span>
+  );
+}

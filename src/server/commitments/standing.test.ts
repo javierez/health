@@ -9,6 +9,7 @@ import {
   freeWindows,
   nudgeDue,
   standing,
+  tickedLine,
   weekStart,
   type Commitment,
   type Session,
@@ -85,7 +86,7 @@ check("gym: 1 of 4 on Saturday cannot be done", describe(standing(gym, sessions,
 const daily: Commitment = { id: 3, title: "Andar 30 min", activities: ["run"], metric: "minutes", target: 30, period: "day", proof: "auto" };
 check("daily, nothing today: pending", standing(daily, sessions, [], thu).status, "pending");
 
-// Habits: nothing arrives on its own, he ticks them or sends a photo.
+// Habits: nothing arrives on its own, he ticks them (a photo he sends counts too).
 const pill: Commitment = { id: 4, title: "Pastilla", activities: [], metric: "sessions", target: 1, period: "day", proof: "photo" };
 const tick = (day: string, photo = true) => ({ day, commitmentId: 4, photo });
 const p = standing(pill, sessions, [tick("2026-10-12"), tick("2026-10-13"), tick("2026-10-14"), tick("2026-10-15")], thu);
@@ -98,7 +99,7 @@ check("kind: a habit is its name", kindOf(pill), "Pastilla");
 check("kind: a training has none, its activity draws it", kindOf(gym), null);
 const notYet = standing(pill, sessions, [tick("2026-10-13"), tick("2026-10-14")], thu);
 check("not yet today: the streak up to yesterday still counts", [notYet.status, notYet.streak], ["pending", 2]);
-check("a photo habit is not ticked in the panel", p.tickable, false);
+check("an old photo habit is ticked in the panel too", p.tickable, true);
 check("another commitment's checks are not mine", standing(pill, sessions, [{ day: "2026-10-15", commitmentId: 9, photo: true }], thu).doneToday, false);
 
 const ticked = standing(gym, sessions, [{ day: "2026-10-14", commitmentId: 1, photo: false }], thu);
@@ -167,6 +168,30 @@ const b2 = standing(bed, [], [], at("2026-10-14T17:00:00Z"), nights);
 check("bedtime: three good nights in a row (Sunday's counts too)", [b2.status, b2.streak], ["on-pace", 3]);
 check("bedtime: no nudge is a day 'done' for it", b2.doneToday, false);
 check("bedtime: 00:00 is a real target (23:30 in, 00:40 out)", standing({ ...bed, target: 0 }, [], [], at("2026-10-14T17:00:00Z"), nights).streak, 1);
+
+// — water: «2 litros al día», from what he says he drank —
+const water: Commitment = { id: 6, title: "Agua", activities: ["water"], metric: "liters", target: 2, period: "day", proof: "auto" };
+const drinks = [
+  { at: at("2026-10-14T08:00:00Z"), liters: 1.5 },
+  { at: at("2026-10-14T15:00:00Z"), liters: 0.5 },
+  { at: at("2026-10-15T07:30:00Z"), liters: 0.25 },
+  { at: at("2026-10-15T12:00:00Z"), liters: 0.5 },
+];
+const w = standing(water, sessions, [{ day: "2026-10-15", commitmentId: 6, photo: false }], thu, [], drinks);
+check("water: today's glasses add up, a tick adds nothing", [w.done, w.left, w.status], [0.8, 1.2, "pending"]);
+check("water: one glass is not the day done", w.doneToday, false);
+check("water: the week drawn in litres, yesterday's 2 L met", w.days.map((d) => d.value), [0, 0, 2, 0.8, 0, 0, 0]);
+check("water: yesterday met, so a streak of 1 up to it", w.streak, 1);
+check("water line", describe(w), "Agua: 0,8 L de 2 L hoy, pendiente");
+check("water count", countOf(w), "faltan 1,2 L");
+check("water: never ticked, never by a training", [w.tickable, standing(water, sessions, [], thu).done], [false, 0]);
+check("water: nothing told is not 0 litres", describe(standing(water, sessions, [], thu)), "Agua: 2 L hoy, nada apuntado aún");
+check("water: 2 L in, done", standing(water, [], [], thu, [], [...drinks, { at: at("2026-10-15T16:00:00Z"), liters: 1.25 }]).doneToday, true);
+check("water: keeps the icon drawn for «Agua»", kindOf({ ...water, title: "Hidratación" }), "Agua");
+check("water behind at 19:00 nudges", nudgeDue(thu, [w], new Set()), { kind: "commitments", day: "2026-10-15" });
+
+check("ticked routines: one line, not «Hecho. En ayunas.»", tickedLine(["En ayunas", "Media mañana"]), "Marcado: en ayunas y media mañana.");
+check("ticked routines: none, no line", tickedLine([]), null);
 
 console.log(`${passed} passed, ${failures.length} failed`);
 for (const f of failures) console.error(`  ✗ ${f}`);

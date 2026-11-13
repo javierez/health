@@ -9,9 +9,26 @@ import { kindKey } from "~/lib/renders";
  * commitment with this title, ticked by hand. The training one is only owed on
  * the days he trains.
  */
-export const ROUTINE_TITLE: Record<Moment, string> = { mañana: "Rutina de mañana", noche: "Rutina de noche", entreno: "Antes de entrenar" };
+export type RoutineMoment = Exclude<Moment, "mañana y noche">;
 
-export const routineTitle = (moment: string | null): string | null => (moment ? (ROUTINE_TITLE[moment as Moment] ?? null) : null);
+export const ROUTINE_TITLE: Record<RoutineMoment, string> = {
+  mañana: "Rutina de mañana",
+  noche: "Rutina de noche",
+  entreno: "Antes de entrenar",
+  // His supplement protocol (21-oct-2026: «de suplementación, no de estética»): the creams keep their own.
+  ayunas: "En ayunas",
+  "media mañana": "Media mañana",
+};
+
+/** The routines a product is in: the cleanser «mañana y noche» is in both. */
+export const routinesOf = (moment: string | null): RoutineMoment[] =>
+  moment === "mañana y noche" ? ["mañana", "noche"] : moment !== null && moment in ROUTINE_TITLE ? [moment as RoutineMoment] : [];
+
+/** Its routine, to say: «Rutina de mañana», or both. */
+export function routineTitle(moment: string | null): string | null {
+  const titles = routinesOf(moment).map((m) => ROUTINE_TITLE[m]);
+  return titles.length > 1 ? "Rutinas de mañana y de noche" : (titles[0] ?? null);
+}
 
 export const ROUTINES = Object.values(ROUTINE_TITLE);
 

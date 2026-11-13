@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { db } from "~/db";
 import { exerciseMoves, kinds, type FactData, type MoveInfo } from "~/db/schema";
-import { exerciseOf, sportOf, ZONES, zonesIn, type Work } from "~/lib/exercises";
+import { exerciseName, exerciseOf, sportOf, ZONES, zonesIn, type Work } from "~/lib/exercises";
 import { bakedFor, kindKey } from "~/lib/renders";
 import { sinRayas } from "~/lib/sin-rayas";
 import { later, paint } from "~/server/kinds";
@@ -27,7 +27,7 @@ export const SYSTEM = `Buscas en internet cómo se hace un ejercicio o un deport
 
 - Músculos solo de la lista. principal: el que trabaja de verdad; ayuda: los que colaboran; sujeta: los que estabilizan. Tres a seis en total.
 - Si es un deporte o algo que se mide por tiempo (yoga, boxeo, natación), di su intensidad para los músculos.
-- inicio y final: las dos posiciones del movimiento, en inglés, para un ilustrador: postura, material y en qué parte del recorrido. Una frase cada una.
+- inicio y final: las dos posiciones del movimiento, en inglés, para un ilustrador: postura, material y en qué parte del recorrido. Una frase cada una. Si se aguanta quieto (pared, plancha), inicio es cómo se coloca antes (de pie contra la pared, rodillas en el suelo) y final la postura aguantada, con lo que se levanta en el aire.
 - Español en el resto, frases cortas. Nunca uses rayas largas ni medias.`;
 
 export const MOVE = {
@@ -121,8 +121,8 @@ const PAIR = (name: string, start: string, end: string) =>
 /** The drawing of a move, as a kind: `/api/icon/mov-<key>`, left half the start, right half the end. */
 export const moveIcon = (key: string) => `mov-${key}`;
 
-/** The name it is kept under: the catalog's when it knows it («press de banca» → «Press banca»). */
-const canonical = (name: string) => exerciseOf(name)?.name ?? sportOf(name)?.name ?? name.trim();
+/** The name it is kept under: the catalog's for a synonym («press de banca» → «Press banca»), its own for a variant. */
+const canonical = (name: string) => (exerciseOf(name) ? exerciseName(name) : (sportOf(name)?.name ?? name.trim()));
 
 /** The key of a move, creating it if new and learning it after the reply. */
 export async function ensureMove(name: string, byTime: boolean): Promise<string | null> {

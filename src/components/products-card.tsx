@@ -52,7 +52,7 @@ export function ProductsCard({ products, list, today, style }: { products: Produ
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-gray-200">
             <Camera className="size-4" />
           </span>
-          Mándame la foto de una crema y la guardo aquí
+          Dime qué crema usas y la guardo aquí
         </a>
       ) : (
         <ProductGrid products={products} list={list} today={today} />

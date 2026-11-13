@@ -7,6 +7,7 @@
  *
  *   set -a && source .env.local && set +a && pnpm tsx scripts/import-whatsapp.ts            # dry: counts only
  *   … scripts/import-whatsapp.ts --write                                                    # import, no model
+ *   … scripts/import-whatsapp.ts --write --since=2026-10-20                                 # only back to that day: a gap after a re-pair
  *
  * Read only on the WhatsApp side (`~/server/evolution/client`): nothing is
  * sent or marked read.
@@ -19,6 +20,7 @@ import { evolutionReady } from "~/server/evolution/client";
 import { importMessages } from "~/server/evolution/sync";
 
 const write = process.argv.includes("--write");
+const since = process.argv.find((a) => a.startsWith("--since="))?.slice("--since=".length);
 
 if (!evolutionReady()) {
   console.error("EVOLUTION_API_URL, EVOLUTION_INSTANCE and EVOLUTION_API_KEY are needed");
@@ -27,7 +29,7 @@ if (!evolutionReady()) {
 
 const t0 = Date.now();
 const res = await importMessages({
-  stopBefore: null,
+  stopBefore: since ? new Date(`${since}T00:00:00Z`) : null,
   maxPages: Number.POSITIVE_INFINITY,
   write,
   onPage: (p, of) => {

@@ -11,7 +11,7 @@ import {
   type FactData,
   type MedicalKind,
 } from "~/db/schema";
-import { localDay } from "~/lib/day";
+import { fromLocal, localDay } from "~/lib/day";
 import { FEELS, TOILET_SYMPTOMS } from "~/lib/toilet";
 import { sinRayas } from "~/lib/sin-rayas";
 import { DEFAULT_MODEL } from "~/server/classify/episodes";
@@ -21,10 +21,12 @@ import { ensureKind } from "~/server/kinds";
 import { checkedToday, toggleCheck } from "~/server/queries/commitments";
 import { loadToilet } from "~/server/queries/toilet";
 import { learnMovesLater } from "~/server/training/learn";
+import { LESSON_TOOL, runLesson } from "./lesson-tool";
 import { ORGANIZE_TOOL, runOrganize } from "./organize-tool";
 import { PRODUCT_TOOL, runProduct } from "./product-tool";
 import { AGENT_VERSION } from "./prompt";
-import { addReminder, cancelReminders, fromLocal, whenText } from "./reminders";
+import { ROUTINE_TOOL, runRoutine } from "./routine-tool";
+import { addReminder, cancelReminders, whenText } from "./reminders";
 import { range, search, SEARCH_KINDS } from "./search";
 
 /**
@@ -44,6 +46,7 @@ export interface TurnState {
   changes: CommitmentChange[];
   done: number[];
   trained: boolean;
+  drank: boolean;
   sync: boolean;
   /** "Press banca 1×8 a 80 kg", one per thing done: the panel shows them under the reply. */
   actions: string[];
@@ -69,7 +72,9 @@ export const TOOLS: Anthropic.Tool[] = [
               ...FACT_FIELDS,
               kcal: { type: "number" },
               protein_g: { type: "number" },
+              water_ml: { type: "number", description: "En una comida o bebida, los ml de agua que se bebe (sola o con gas): un vaso 250, una botella 500 si no dice otra." },
               like: { type: "number", description: "«Lo de siempre», «lo mismo que ayer»: el [id] de la comida a copiar. Sin foods, se copia tal cual." },
+              rutina: { type: "number", description: "En un entreno que es toda o parte de una de sus rutinas de entreno: su [id]. Con solo los ejercicios que hizo." },
               foods: {
                 type: "array",
                 description: "En una comida, cada alimento con sus gramos y lo que aporta. Lo que no lleve, sin poner.",
@@ -192,6 +197,8 @@ export const TOOLS: Anthropic.Tool[] = [
   },
   PRODUCT_TOOL,
   ORGANIZE_TOOL,
+  ROUTINE_TOOL,
+  LESSON_TOOL,
   {
     name: "borrar_apuntes",
     description: "Borra apuntes que estaban mal o no eran suyos.",
@@ -319,6 +326,10 @@ const RUN: Record<string, Run> = {
       // The code writes where his commitments stand after a training, in its own message.
       lines.push("Cuánto lleva de sus compromisos de entreno se le manda solo, en un mensaje aparte al final: no lo repitas.");
     }
+    if (found.some((f) => f.data.waterMl)) {
+      s.drank = true;
+      lines.push("Cuánta agua lleva hoy se le manda sola, en un mensaje aparte al final: no lo repitas.");
+    }
     if (rows.some((r) => r.kind === "toilet")) lines.push(`Hoy en el baño: ${(await loadToilet(s.now)).todayLine}`);
     return lines.join("\n");
   },
@@ -384,6 +395,8 @@ const RUN: Record<string, Run> = {
 
   producto: runProduct,
   organizar: runOrganize,
+  rutina_entreno: runRoutine,
+  aprender: runLesson,
 
   borrar_apuntes: async (input, s) => {
     const list = idList((input as { ids?: unknown } | null)?.ids);

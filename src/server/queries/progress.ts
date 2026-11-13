@@ -5,6 +5,7 @@ import { codeRecords, episodes, facts, whoopRecords } from "~/db/schema";
 import { env } from "~/env";
 import { addDays, hm, localDay } from "~/lib/day";
 import { needMinutes, type SleepRaw } from "~/server/assistant/context";
+import { sessionsFrom } from "~/server/commitments/standing";
 import { TEAM } from "~/server/github/sync";
 
 /**
@@ -118,12 +119,16 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
   const from = new Date(now.getTime() - (WEEKS * 7 + 120) * 86_400_000);
   const me = env.GITHUB_LOGIN ?? "javierez";
 
-  const [whoop, weights, code, calls, [pocket]] = await Promise.all([
+  const [whoop, told, weights, code, calls, [pocket]] = await Promise.all([
     db
       .select()
       .from(whoopRecords)
       .where(and(inArray(whoopRecords.kind, ["sleep", "recovery", "workout"]), gte(whoopRecords.startAt, from)))
       .orderBy(asc(whoopRecords.startAt)),
+    db
+      .select({ at: facts.at, summary: facts.summary, data: facts.data })
+      .from(facts)
+      .where(and(eq(facts.kind, "training"), gte(facts.at, from))),
     db
       .select({ day: facts.day, at: facts.at, data: facts.data })
       .from(facts)
@@ -157,7 +162,8 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
 
   const nights = whoop.filter((w) => w.kind === "sleep" && w.endAt && !(w.raw as Raw).nap);
   const recoveries = whoop.filter((w) => w.kind === "recovery" && w.day);
-  const workouts = whoop.filter((w) => w.kind === "workout" && w.startAt);
+  // The band's workouts and the ones he told: Edge detects none.
+  const workouts = sessionsFrom(whoop.filter((w) => w.kind === "workout"), told);
 
   const latest = [
     nights.at(-1)?.endAt ? localDay(nights.at(-1)!.endAt!) : null,
@@ -195,10 +201,10 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
   }
   const recWeeks = rec.map(mean);
 
-  const sessions = buckets<number>();
+  const sessions = buckets<number | null>();
   for (const w of workouts) {
-    const i = weekIndex(localDay(w.startAt!), anchor);
-    if (i !== null) sessions[i]!.push((w.durationSeconds ?? 0) / 60);
+    const i = weekIndex(localDay(w.at), anchor);
+    if (i !== null) sessions[i]!.push(w.minutes);
   }
   const anyTraining = workouts.length > 0;
   const sessionWeeks = sessions.map((s) => (anyTraining ? s.length : null));
@@ -273,7 +279,8 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
       value: anyTraining ? String(sessionsNow.length) : null,
       unit: sessionsNow.length === 1 ? "sesión" : "sesiones",
       note: [
-        sessionsNow.length > 0 ? `${hm(sessionsNow.reduce((a, b) => a + b, 0))} en total` : "Sin entrenar",
+        // A told one has no minutes: a total without it would be short.
+        sessionsNow.length === 0 ? "Ninguno apuntado" : sessionsNow.every((m) => m !== null) ? `${hm(sessionsNow.reduce<number>((a, b) => a + b!, 0))} en total` : null,
         prior(sessionWeeks) === null ? null : `antes ${comma(prior(sessionWeeks)!)} por semana`,
       ]
         .filter(Boolean)
@@ -281,7 +288,7 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
       delta: delta(sessionWeeks),
       weeks: single(sessionWeeks, (v) => `${v} ${v === 1 ? "sesión" : "sesiones"}`),
       floor: 0,
-      empty: "Sin entrenos de WHOOP.",
+      empty: "Sin entrenos.",
     },
     {
       key: "weight",
@@ -293,7 +300,7 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
       delta: delta(kgWeeks),
       weeks: single(kgWeeks, (v) => `${comma(v)} kg`),
       floor: kgKnown.length > 0 ? Math.floor(Math.min(...kgKnown)) - 1 : 0,
-      empty: "Mándale una foto de la báscula al chat.",
+      empty: "Dile al chat cuánto pesas.",
     },
     {
       key: "code",
@@ -338,8 +345,9 @@ export async function loadProgress(now = new Date()): Promise<Progress> {
 }
 
 /** The same numbers as lines, for the assistant's context. */
-export function progressLines(p: Progress): string[] {
-  return p.cards.map(
+/** `without`: cards with no week behind them, e.g. sleep and recovery while the band is silent. */
+export function progressLines(p: Progress, without: ProgressCard["key"][] = []): string[] {
+  return p.cards.filter((c) => !without.includes(c.key)).map(
     (c) =>
       `- ${c.title}: ${c.value === null ? "sin datos" : `${c.value} ${c.unit}`} esta semana${c.note ? ` (${c.note})` : ""}${c.delta ? `, ${c.delta.text} frente a las 4 semanas antes` : ""}`,
   );

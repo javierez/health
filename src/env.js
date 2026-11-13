@@ -18,6 +18,8 @@ export const env = createEnv({
      * registration, which is why dev runs under `next dev --experimental-https`.
      */
     WHOOP_REDIRECT_URI: z.string().url().optional(),
+    /** OpenStrap Edge's bearer when it posts the strap's numbers (`/api/webhooks/edge`). */
+    EDGE_PUSH_SECRET: z.string().min(16).optional(),
     /** `gh auth token`. Needs `repo` to see private repos' line counts. */
     GITHUB_TOKEN: z.string().optional(),
     /** The GitHub login whose commits and PRs count as "mine". */
@@ -63,6 +65,8 @@ export const env = createEnv({
     TWILIO_SENDER_ID: z.string().optional(),
     /** The panel's address, for the links the chat sends. On Vercel it falls back to the production domain. */
     APP_URL: z.string().url().optional(),
+    /** The demo copy Gonzalo shows (`scripts/sembrar-demo.ts`): invented data, nothing synced, no AI on its own. */
+    DEMO_MODE: z.enum(["1"]).optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   },
   client: {},
@@ -74,6 +78,7 @@ export const env = createEnv({
     WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID,
     WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
     WHOOP_REDIRECT_URI: process.env.WHOOP_REDIRECT_URI,
+    EDGE_PUSH_SECRET: process.env.EDGE_PUSH_SECRET,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     GITHUB_LOGIN: process.env.GITHUB_LOGIN,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
@@ -95,6 +100,7 @@ export const env = createEnv({
     APP_URL:
       process.env.APP_URL ??
       (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined),
+    DEMO_MODE: process.env.DEMO_MODE,
     NODE_ENV: process.env.NODE_ENV,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

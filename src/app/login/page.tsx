@@ -1,3 +1,4 @@
+import { env } from "~/env";
 import { googleEnabled } from "~/lib/auth";
 import { SignInForm } from "./signin-form";
 
@@ -10,5 +11,10 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const callbackUrl = typeof params.callbackUrl === "string" && params.callbackUrl.startsWith("/") ? params.callbackUrl : "/";
-  return <SignInForm callbackUrl={callbackUrl} google={googleEnabled} googleError={params.error !== undefined} />;
+  return (
+    <>
+      <SignInForm callbackUrl={callbackUrl} google={googleEnabled} googleError={params.error !== undefined} />
+      {env.DEMO_MODE ? <p className="fixed inset-x-0 bottom-4 text-center text-xs text-gray-400">Demo: todos los datos son inventados</p> : null}
+    </>
+  );
 }

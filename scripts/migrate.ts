@@ -29,7 +29,7 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
 
 const host = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 const secret = process.env.SYNC_SECRET;
-if (process.env.VERCEL_ENV === "production" && host && secret) {
+if (process.env.VERCEL_ENV === "production" && host && secret && process.env.DEMO_MODE !== "1") {
   try {
     await sql`create extension if not exists pg_cron`;
     await sql`create extension if not exists pg_net`;

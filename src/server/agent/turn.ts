@@ -8,6 +8,7 @@ import { buildContext } from "~/server/assistant/context";
 import { recentWhatsapp } from "~/server/evolution/sync";
 import { noteCommitments } from "~/server/queries/commitments";
 import { loadToday, type TodoRow } from "~/server/queries/today";
+import { loadRoutines, routineLine } from "~/server/training/routines";
 import { runAgent } from "./agent";
 import type { Part } from "./parts";
 import { pendingReminders, whenText } from "./reminders";
@@ -30,12 +31,13 @@ export async function agentTurn(input: {
   photo: boolean;
 }): Promise<{ ok: boolean; messages: string[]; actions: string[]; sync: boolean; detail?: string }> {
   const now = new Date();
-  const [context, today, reminders, history, whatsapp] = await Promise.all([
+  const [context, today, reminders, history, whatsapp, routines] = await Promise.all([
     buildContext(now),
     loadToday(now),
     pendingReminders(),
     loadHistory(input.messageId, input.group ?? []),
     recentWhatsapp(localDay(now)),
+    loadRoutines(),
   ]);
   const state: TurnState = {
     now,
@@ -46,6 +48,7 @@ export async function agentTurn(input: {
     changes: [],
     done: [],
     trained: false,
+    drank: false,
     sync: false,
     actions: [],
     titles: Object.fromEntries(today.rows.map((r) => [r.key, r.title])),
@@ -55,6 +58,8 @@ export async function agentTurn(input: {
     ...today.rows.map(rowLine),
     "\nRecordatorios pendientes:",
     ...(reminders.length > 0 ? reminders.map((r) => `- [${r.id}] ${r.body}, ${whenText(r.at, now)}`) : ["- Ninguno."]),
+    "\nSus rutinas de entreno:",
+    ...(routines.length > 0 ? routines.map(routineLine) : ["- Ninguna guardada."]),
     ...(whatsapp.length > 0 ? ["\nSu WhatsApp de los últimos días (el detalle, con buscar):", ...whatsapp] : []),
     `\nTe escribe desde ${input.channel === "web" ? "su panel" : "WhatsApp"}.`,
   ].join("\n");
@@ -64,8 +69,8 @@ export async function agentTurn(input: {
   // What the tools wrote stays written even if the reply failed: the
   // commitments go in with it, so a second try does not count them twice.
   const noted =
-    state.changes.length > 0 || state.done.length > 0 || state.trained
-      ? await noteCommitments({ changes: state.changes, done: state.done, trained: state.trained, photo: state.photo, at: input.at })
+    state.changes.length > 0 || state.done.length > 0 || state.trained || state.drank
+      ? await noteCommitments({ changes: state.changes, done: state.done, trained: state.trained, drank: state.drank, photo: state.photo, at: input.at })
       : null;
 
   if (!run.ok) {
@@ -78,12 +83,14 @@ export async function agentTurn(input: {
   // The commitments' count is written by code, not the model, and rides on the
   // first bubble: «Apuntado, sentadilla 4x6 a 100. Gimnasio: 3 de 4.» is one message.
   const [first, ...rest] = toBubbles(run.reply);
-  const messages = [[first, noted].filter(Boolean).join(" "), ...rest].filter(Boolean);
+  // «Marcado.» and then the code's «Marcado: en ayunas y media mañana.» said it twice.
+  const bare = noted !== null && /^(hecho|marcado|apuntado)[.!]?$/i.test(first?.trim() ?? "");
+  const messages = [[bare ? null : first, noted].filter(Boolean).join(" "), ...rest].filter(Boolean);
   return { ok: true, messages: messages.length > 0 ? messages : ["Hecho."], actions: state.actions, sync: state.sync };
 }
 
 export function rowLine(r: TodoRow): string {
-  const how = r.done ? " (tachada)" : r.tick === "photo" ? " (con foto por WhatsApp)" : r.tick === null ? " (se marca sola)" : "";
+  const how = r.done ? " (tachada)" : r.tick === null ? " (se marca sola)" : "";
   return `- [${r.key}] ${r.title}${r.detail ? `: ${r.detail}` : ""}${how}`;
 }
 

@@ -43,6 +43,8 @@ export const auth = betterAuth({
   rateLimit: { window: 60, max: 5 },
   trustedOrigins: [
     "http://localhost:3100",
+    // The first URL, still live for the webhooks: with a custom domain Vercel stops naming it below.
+    "https://health-five-livid.vercel.app",
     ...(env.APP_URL ? [env.APP_URL] : []),
     ...(process.env.VERCEL_PROJECT_PRODUCTION_URL ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`] : []),
     ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),

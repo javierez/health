@@ -1,4 +1,4 @@
-import type { Activity, Metric, Period, Proof } from "~/db/schema";
+import type { Activity, FactData, Metric, Period, Proof } from "~/db/schema";
 import { addDays, localDay, localMinutes } from "~/lib/day";
 import { isRoutine, ROUTINE_TITLE, type Member } from "~/lib/routines";
 
@@ -11,7 +11,8 @@ import { isRoutine, ROUTINE_TITLE, type Member } from "~/lib/routines";
  * arrives: WHOOP workouts and the training facts from the chat and the Pocket
  * (a session seen by both counts once, see `dedupe`), and the days he ticked
  * off, in the panel or with a photo in the chat. A bedtime is read from
- * WHOOP's nights and only from them: it cannot be ticked.
+ * WHOOP's nights and only from them: it cannot be ticked. Water is the litres
+ * he says he drank (`waterMl` on his meals), and cannot be ticked either.
  */
 export interface Commitment {
   id: number;
@@ -44,7 +45,13 @@ export function bedtimeOf(start: Date): Bedtime {
 }
 
 /** Minutes after noon, so 23:30 (690) comes before 01:00 (780). */
-const sinceNoon = (clock: number) => (clock - 720 + 1440) % 1440;
+export const sinceNoon = (clock: number) => (clock - 720 + 1440) % 1440;
+
+/** A drink with water in it, from the chat. */
+export interface Drink {
+  at: Date;
+  liters: number;
+}
 
 export interface Session {
   at: Date;
@@ -100,6 +107,30 @@ export function dedupe(sessions: Session[]): Session[] {
   return [...whoop, ...facts].sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
+/**
+ * Every session, one each: the band's workouts and the trainings he told the
+ * chat. Since WHOOP's subscription went, the band (Edge) detects none, so the
+ * told ones are all there is: a count from workouts alone said «0 sesiones de
+ * fuerza» the week of his 21-oct leg day.
+ */
+export function sessionsFrom(
+  workouts: { label: string | null; startAt: Date | null; durationSeconds: number | null; raw: unknown }[],
+  told: { at: Date; summary: string; data: Pick<FactData, "training" | "distanceKm"> }[],
+): Session[] {
+  return dedupe([
+    ...workouts.flatMap((w): Session[] => {
+      const activity = whoopActivity(w.label);
+      if (!activity || !w.startAt) return [];
+      const meters = (w.raw as { score?: { distance_meter?: number } | null }).score?.distance_meter;
+      return [{ at: w.startAt, activity, km: meters ? meters / 1000 : null, minutes: w.durationSeconds ? Math.round(w.durationSeconds / 60) : null, source: "whoop" }];
+    }),
+    ...told.flatMap((f): Session[] => {
+      const activity = factActivity(f.data.training, f.summary);
+      return activity ? [{ at: f.at, activity, km: f.data.distanceKm ?? null, minutes: null, source: "fact" }] : [];
+    }),
+  ]);
+}
+
 /** Monday of this week in Madrid, `YYYY-MM-DD`. The week runs Monday to Sunday. */
 export function weekStart(now: Date): string {
   const today = localDay(now);
@@ -139,7 +170,7 @@ export interface Standing {
   members?: Member[];
 }
 
-export function standing(c: Commitment, sessions: Session[], checks: Check[], now: Date, nights: Bedtime[] = []): Standing {
+export function standing(c: Commitment, sessions: Session[], checks: Check[], now: Date, nights: Bedtime[] = [], drinks: Drink[] = []): Standing {
   if (c.metric === "bedtime") return bedtimeStanding(c, nights, now);
   const today = localDay(now);
   const monday = weekStart(now);
@@ -149,7 +180,9 @@ export function standing(c: Commitment, sessions: Session[], checks: Check[], no
 
   const mark = (day: string): DayMark => {
     const auto = round(
-      sessions.filter((s) => c.activities.includes(s.activity) && localDay(s.at) === day).reduce((n, s) => n + worth(s), 0),
+      c.metric === "liters"
+        ? drinks.filter((d) => localDay(d.at) === day).reduce((n, d) => n + d.liters, 0)
+        : sessions.filter((s) => c.activities.includes(s.activity) && localDay(s.at) === day).reduce((n, s) => n + worth(s), 0),
     );
     if (auto > 0) return { day, value: auto, by: "auto" };
     // A tick is one: one pill, one session he did without WHOOP. It cannot
@@ -161,10 +194,12 @@ export function standing(c: Commitment, sessions: Session[], checks: Check[], no
 
   const days = Array.from({ length: 7 }, (_, i) => mark(addDays(monday, i)));
   const todayMark = days.find((d) => d.day === today) ?? mark(today);
-  const doneToday = todayMark.value > 0;
+  // A glass is not the day's water: it is done once the litres are in.
+  const doneToday = c.metric === "liters" ? todayMark.value >= c.target : todayMark.value > 0;
   // Only what nothing can show is ticked (16-oct-2026): a training WHOOP missed
   // is told to the chat, which writes the fact that counts.
-  const tickable = c.proof === "check";
+  // An old «photo» one is ticked too: no habit asks for a photo (22-oct-2026).
+  const tickable = c.proof !== "auto";
 
   if (c.period === "day") {
     const done = todayMark.value;
@@ -238,7 +273,7 @@ const round = (n: number) => Math.round(n * 10) / 10;
 
 const es = (n: number) => String(n).replace(".", ",");
 
-const UNIT: Record<Metric, string> = { sessions: "", km: " km", minutes: " min", bedtime: "" };
+const UNIT: Record<Metric, string> = { sessions: "", km: " km", minutes: " min", bedtime: "", liters: " L" };
 
 /** "21,5 km", "3". Spanish decimals, the unit when there is one. */
 export const amount = (n: number, metric: Metric) => `${es(n)}${UNIT[metric]}`;
@@ -249,8 +284,8 @@ export function describe(p: Standing): string {
   return `${title}, ${detail}`;
 }
 
-/** A habit's kind is its name: «Meditar» gets the icon drawn for it (`~/server/kinds`). */
-export const kindOf = (c: Commitment): string | null => (c.activities.length === 0 ? c.title : null);
+/** A habit's kind is its name: «Meditar» gets the icon drawn for it (`~/server/kinds`). Water keeps the one drawn for «Agua». */
+export const kindOf = (c: Commitment): string | null => (c.activities.length === 0 ? c.title : c.activities.includes("water") ? "Agua" : null);
 
 /**
  * "faltan 10,3 km", "falta 1", "hecho", "hasta la 01:00": the board's count is
@@ -271,6 +306,13 @@ export function brief(p: Standing): string {
   return p.status === "behind" || p.status === "tight" ? `${title}, ${detail}` : title;
 }
 
+/** «Marcado: en ayunas y media mañana.»: the routines one message ticked, in one line. */
+export function tickedLine(titles: string[]): string | null {
+  const low = titles.map((t) => t.charAt(0).toLowerCase() + t.slice(1));
+  if (low.length === 0) return null;
+  return `Marcado: ${low.length > 1 ? `${low.slice(0, -1).join(", ")} y ${low.at(-1)}` : low[0]}.`;
+}
+
 /** The same, split for the board: the numbers as the title, how it goes under it. */
 export function describeParts(p: Standing): { title: string; detail: string } {
   if (p.commitment.metric === "bedtime") {
@@ -287,6 +329,8 @@ export function describeParts(p: Standing): { title: string; detail: string } {
   if (p.commitment.period === "day" && p.commitment.target === 1 && p.commitment.metric === "sessions") {
     return { title: p.commitment.title, detail: `${p.status === "done" ? "hecho hoy" : "pendiente hoy"}${streak}` };
   }
+  // Nothing told is not 0 litres (25-oct-2026: «agua 0 de 2» on a day he never said).
+  if (p.commitment.metric === "liters" && p.done === 0) return { title: `${p.commitment.title}: ${es(p.commitment.target)}${u} hoy`, detail: `nada apuntado aún${streak}` };
   const title = `${p.commitment.title}: ${es(p.done)}${u} de ${es(p.commitment.target)}${u}${p.commitment.period === "day" ? " hoy" : ""}`;
   if (p.status === "done") return { title, detail: `cumplido${streak}` };
   if (p.commitment.period === "day") return { title, detail: `pendiente${streak}` };

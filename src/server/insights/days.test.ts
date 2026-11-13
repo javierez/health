@@ -15,6 +15,7 @@ const empty: Raw = {
   recoveries: [],
   strain: [],
   workouts: [],
+  activity: [],
   code: [],
   lateCode: [],
   codeRange: null,
@@ -110,6 +111,32 @@ const [loud, calm, unread] = buildDays(
 check("a tense call counts like a tense chat", [loud?.tenseChats, loud?.tenseTopics], [3, ["Clientes", "Socio"]]);
 check("a day with only Pocket is read too", [calm?.tenseChats, calm?.topics], [0, ["Clientes"]]);
 check("nothing read: unknown, not «no tension»", unread?.tenseChats, null);
+
+// The band and the Pocket (21-oct-2026). Seven scored mornings, 10th to 16th; bed at 00:00, then 02:00 on the 16th.
+const week = Array.from({ length: 7 }, (_, i) => `2026-10-${String(10 + i).padStart(2, "0")}`);
+const band = buildDays(
+  {
+    ...empty,
+    recoveries: week.map((d) => ({ morning: `2026-10-${String(Number(d.slice(8)) + 1).padStart(2, "0")}`, recovery: 60, hrv: 40, rhr: 55 })),
+    sleeps: week.map((d, i) => {
+      const morning = `2026-10-${String(Number(d.slice(8)) + 1).padStart(2, "0")}`;
+      return { morning, start: at(morning, i === 6 ? "02:00" : "00:00"), slept: 420 };
+    }),
+    // 30 min of zones 1-3 every day and 10 of zones 4-5 on the 16th; 600 steps on the 15th is the band off.
+    activity: week.map((d, i) => ({ day: d, steps: i === 5 ? 600 : 9000, moderate: 30, vigorous: i === 6 ? 10 : 0, stress: null })),
+    pocket: [{ day: "2026-10-16", business: 0, social: 40, family: 35, friends: 0, lines: "" }],
+    pocketRange: ["2026-10-16", "2026-10-16"],
+  },
+  "2026-10-17",
+);
+const last = band.at(-1)!;
+check("steps: the band off is unknown, not a lazy day", [band[5]?.steps, last.steps], [null, 9000]);
+check("zone minutes, that day", [last.moderateMin, last.vigorousMin], [30, 10]);
+check("the week's cardio: vigorous counts twice", last.activeWeek, 7 * 30 + 2 * 10);
+check("under five scored mornings, the week is unknown", band[2]?.activeWeek, null);
+check("two hours past his usual bed", [band[5]?.bedShift, last.bedShift], [0, 120]);
+check("under four beds before, no usual bed", band[2]?.bedShift, null);
+check("time with family and with friends", [last.family, last.friends, band[0]?.family], [35, 0, null]);
 
 if (failures.length > 0) {
   console.error(failures.join("\n"));

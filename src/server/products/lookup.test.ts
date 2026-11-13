@@ -27,6 +27,10 @@ check("ingredients as on the box", info?.ingredients, ["Aqua", "Glycerin"]);
 check("five cautions at most", info?.cautions.length, 5);
 check("a made-up link drops only itself", info?.sources, [{ title: "INCIDecoder", url: "https://incidecoder.com/products/x" }]);
 check("no summary: no card", parseInfo({ ...card, resumen: "" }), null);
+check("a cream has no evidence", info?.evidence, null);
+const creatine = parseInfo({ ...card, evidencia: { veredicto: "funciona", linea: "Más fuerza con pesas — Kreider 2017.", dosis: "3 a 5 g al día" } });
+check("a supplement's evidence, without dashes", creatine?.evidence, { verdict: "funciona", line: "Más fuerza con pesas, Kreider 2017.", dose: "3 a 5 g al día" });
+check("a made-up verdict drops the evidence, not the card", parseInfo({ ...card, evidencia: { veredicto: "milagro", linea: "x", dosis: "" } })?.evidence, null);
 check("missing lists: empty, not a failure", parseInfo({ resumen: "Creatina." })?.ingredients, []);
 
 if (failures.length > 0) {

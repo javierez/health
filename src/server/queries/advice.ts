@@ -6,7 +6,7 @@ import { addDays, localDay, localMinutes } from "~/lib/day";
 import { totals } from "~/lib/food";
 import { advise, type Advice } from "~/server/assistant/evidence";
 import type { Night } from "~/server/assistant/plan";
-import { whoopActivity, type Standing } from "~/server/commitments/standing";
+import { sessionsFrom, type Standing } from "~/server/commitments/standing";
 import { loadFindings } from "./findings";
 import { loadWeight } from "./food";
 
@@ -15,15 +15,19 @@ export async function loadAdvice(now: Date, nights: Night[], bedMinutes: number,
   const today = localDay(now);
   const weekday = ((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + 1;
   const monday = addDays(today, 1 - weekday);
-  const [recent, workouts, weightKg, found] = await Promise.all([
+  const [recent, workouts, told, weightKg, found] = await Promise.all([
     db
       .select({ at: facts.at, day: facts.day, data: facts.data })
       .from(facts)
       .where(and(eq(facts.kind, "meal"), gte(facts.day, addDays(today, -6)))),
     db
-      .select({ raw: whoopRecords.raw, seconds: whoopRecords.durationSeconds })
+      .select({ label: whoopRecords.label, startAt: whoopRecords.startAt, durationSeconds: whoopRecords.durationSeconds, raw: whoopRecords.raw })
       .from(whoopRecords)
       .where(and(eq(whoopRecords.kind, "workout"), gte(whoopRecords.day, monday))),
+    db
+      .select({ at: facts.at, summary: facts.summary, data: facts.data })
+      .from(facts)
+      .where(and(eq(facts.kind, "training"), gte(facts.day, monday))),
     loadWeight(),
     loadFindings(),
   ]);
@@ -34,7 +38,7 @@ export async function loadAdvice(now: Date, nights: Night[], bedMinutes: number,
   const caffeine = todays.filter((m) => m.data.caffeine).map((m) => localMinutes(m.at));
   const protein = todays.flatMap((m) => (m.data.proteinG === undefined ? [] : [m.data.proteinG]));
   const foods = todays.flatMap((m) => m.data.foods ?? []);
-  const sport = workouts.map((w) => ({ activity: whoopActivity((w.raw as { sport_name?: string }).sport_name), minutes: (w.seconds ?? 0) / 60 }));
+  const sport = sessionsFrom(workouts, told);
   const has = (a: string) => commitments.some((c) => c.commitment.activities.includes(a as never));
 
   return advise({
@@ -51,7 +55,8 @@ export async function loadAdvice(now: Date, nights: Night[], bedMinutes: number,
     fiberToday: foods.length > 0 ? totals(foods).fiberG : null,
     weightKg,
     strengthWeek: sport.filter((s) => s.activity === "gym").length,
-    cardioMinutesWeek: Math.round(sport.filter((s) => s.activity === "run" || s.activity === "bike").reduce((a, s) => a + s.minutes, 0)),
+    // Told without its minutes: half an hour, about his own (spin on WHOOP: 28 min median).
+    cardioMinutesWeek: Math.round(sport.filter((s) => s.activity === "run" || s.activity === "bike").reduce((a, s) => a + (s.minutes ?? 30), 0)),
     weekday,
     covered: { strength: has("gym"), cardio: has("run") || has("bike") },
     weekendNights: weekend

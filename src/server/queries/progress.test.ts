@@ -50,7 +50,7 @@ const written = parseWritten({
     { area: "sleep", title: "Nada de pantallas desde las 22:00" },
   ],
 });
-check("one paragraph, no dashes", written.text, "Hoy suave, recuperación 39 %. A dormir pronto.");
+check("its lines kept, no dashes", written.text, "Hoy suave, recuperación 39 %.\nA dormir pronto.");
 check("an off-list area is dropped", written.items.length, 2);
 check("a missing detail is empty, not the item", written.items[1]?.detail, "");
 

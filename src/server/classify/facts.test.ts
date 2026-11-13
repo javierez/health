@@ -95,6 +95,9 @@ check("alcohol in a food is alcohol in the meal", meal?.data.alcohol, true);
 
 const [usual] = parseFacts({ facts: [{ kind: "meal", summary: "Desayuno de siempre", meal: "breakfast", like: "412", evidence: "lo de siempre", confidence: 0.9 }] });
 check("«lo de siempre» keeps the meal it copies", usual?.like, 412);
+const water = (ml: unknown) => parseFacts({ facts: [{ kind: "meal", summary: "Agua", meal: "drink", water_ml: ml, evidence: "un vaso de agua", confidence: 0.9 }] })[0]?.data.waterMl;
+check("a glass of water, in ml", [water(250), water("500"), water(333.4)], [250, 500, 333]);
+check("no water, or a mistake, is no water", [water(undefined), water(0), water(12000)], [undefined, undefined, undefined]);
 const copied = withFoods({ meal: "breakfast" }, [{ name: "Café con leche", kcal: 90, proteinG: 6, caffeineMg: 80 }, { name: "Tostada", kcal: 190, proteinG: 5 }]);
 check("a copied meal adds up its foods", [copied.kcal, copied.proteinG, copied.caffeine, copied.items], [280, 11, true, ["Café con leche", "Tostada"]]);
 

@@ -219,7 +219,8 @@ export type Episode = typeof episodes.$inferSelect;
  * three places.
  */
 /** `profile` and `body` are one row each (`externalId = "me"`), with no day. */
-export const WHOOP_KINDS = ["cycle", "sleep", "recovery", "workout", "profile", "body"] as const;
+/** `metric` is not WHOOP's: one Apple Health metric's points for a day (`server/edge/apple-health.ts`). */
+export const WHOOP_KINDS = ["cycle", "sleep", "recovery", "workout", "profile", "body", "metric"] as const;
 export type WhoopKind = (typeof WHOOP_KINDS)[number];
 
 export const whoopRecords = pgTable(
@@ -253,6 +254,18 @@ export const whoopRecords = pgTable(
   },
   (t) => [index("whoop_day_idx").on(t.day), index("whoop_kind_idx").on(t.kind)],
 );
+
+/**
+ * Every distinct body posted to `/api/webhooks/edge`, untouched, so a day can
+ * be read again from what the band said. Edge resends the last days on every
+ * sync: `hash` (sha256 of the body) keeps one copy of each.
+ */
+export const edgePushes = pgTable("edge_pushes", {
+  id: serial("id").primaryKey(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  hash: text("hash").notNull().unique(),
+  body: jsonb("body").notNull(),
+});
 
 /**
  * The OAuth grant. One row, `provider = 'whoop'`.
@@ -382,10 +395,14 @@ export interface FactData {
   caffeine?: boolean;
   /** training: gym · run · other */
   training?: string;
-  exercises?: { name: string; sets?: number; reps?: number; weightKg?: number }[];
+  exercises?: { name: string; sets?: number; reps?: number; weightKg?: number; seconds?: number }[];
+  /** training: the saved routine it was all or part of (`training_routines`). */
+  routineId?: number;
   distanceKm?: number;
   /** medical: symptom · medication · diagnosis · appointment · instruction · test */
   medical?: string;
+  /** meal: the water he drank with it or on its own (still or sparkling), in ml. What his water commitment adds up. */
+  waterMl?: number;
   /** meal, from a photo: a rough estimate, never weighed. */
   kcal?: number;
   proteinG?: number;
@@ -483,7 +500,7 @@ export const assistantMessages = pgTable(
   "assistant_messages",
   {
     id: serial("id").primaryKey(),
-    /** bedtime · morning · commitments */
+    /** bedtime · morning · commitments · reading (the interpreter's, weekly; never sent) */
     kind: text("kind").notNull(),
     day: text("day").notNull(),
     body: text("body").notNull(),
@@ -493,13 +510,15 @@ export const assistantMessages = pgTable(
     waMessageId: text("wa_message_id"),
     /** morning: the day's list of things to do, shown at the top of the board. */
     items: jsonb("items").$type<Recommendation[]>(),
+    /** morning: the minutes asleep it was written with; a longer night rewrites the list once. */
+    nightMinutes: integer("night_minutes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("assistant_messages_kind_day_idx").on(t.kind, t.day)],
 );
 
 export interface Recommendation {
-  /** sleep · training · food · medical · work */
+  /** sleep · training · food · medical · work; the reading adds social */
   area: string;
   title: string;
   detail: string;
@@ -546,12 +565,31 @@ export const reminders = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }),
     cancelled: boolean("cancelled").notNull().default(false),
     chatMessageId: integer("chat_message_id").references(() => chatMessages.id, { onDelete: "set null" }),
+    /** One of the day's, planned by the morning note: sent as written, and not an hour late. */
+    planned: boolean("planned").notNull().default(false),
+    /** The row of the day's list it is about, so it is not sent once the row is done. */
+    itemKey: text("item_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("reminders_due_idx").on(t.at).where(sql`sent_at is null and not cancelled`)],
 );
 
 export type Reminder = typeof reminders.$inferSelect;
+
+/**
+ * What he corrected in how the assistant talks or reads his data («no me
+ * cuentes rachas», «la banda empieza a contar tarde»), saved by the chat and
+ * read by every message after it, the chat's and the ones it sends on its own.
+ * Each one used to wait for a prompt change (26-oct-2026: «more intelligent,
+ * like Instinct»). Forgotten = `active` false.
+ */
+export const lessons = pgTable("lessons", {
+  id: serial("id").primaryKey(),
+  body: text("body").notNull(),
+  chatMessageId: integer("chat_message_id").references(() => chatMessages.id, { onDelete: "set null" }),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export type AssistantMessage = typeof assistantMessages.$inferSelect;
 
@@ -560,11 +598,11 @@ export type AssistantMessage = typeof assistantMessages.$inferSelect;
  * bici", "la pastilla cada día, con foto". Only the promise lives here; how far he is goes unstored and is read
  * from WHOOP and the facts by `~/server/commitments/standing`.
  */
-/** `sleep` only goes with `bedtime`: WHOOP's nights, never a session. */
-export const ACTIVITIES = ["gym", "run", "bike", "sleep"] as const;
+/** `sleep` only goes with `bedtime`: WHOOP's nights, never a session. `water` only with `liters`: what he says he drank. */
+export const ACTIVITIES = ["gym", "run", "bike", "sleep", "water"] as const;
 export type Activity = (typeof ACTIVITIES)[number];
 /** `bedtime`: the target is the latest clock time, in minutes after midnight (01:00 = 60). */
-export const METRICS = ["sessions", "km", "minutes", "bedtime"] as const;
+export const METRICS = ["sessions", "km", "minutes", "bedtime", "liters"] as const;
 export type Metric = (typeof METRICS)[number];
 export const PERIODS = ["week", "day"] as const;
 export type Period = (typeof PERIODS)[number];
@@ -768,8 +806,12 @@ export type Kind = typeof kinds.$inferSelect;
 
 export const SKIN_CATEGORIES = ["solar", "retinol", "hidratante", "limpiador", "otro"] as const;
 export type SkinCategory = (typeof SKIN_CATEGORIES)[number];
-/** Its routine (`~/lib/routines`): a solar in the morning, a retinol at night, the creatine before training. */
-export const MOMENTS = ["mañana", "noche", "entreno"] as const;
+/**
+ * Its routine (`~/lib/routines`): a solar in the morning, a retinol at night, the collagen before training.
+ * `ayunas` and `media mañana` are his supplement protocol (21-oct-2026), apart from the creams.
+ * `mañana y noche` is in both face routines: the cleanser he uses twice a day (22-oct-2026).
+ */
+export const MOMENTS = ["mañana", "noche", "entreno", "ayunas", "media mañana", "mañana y noche"] as const;
 export type Moment = (typeof MOMENTS)[number];
 
 /** Where a product goes: his skin, a supplement or pill, something he eats, something he drinks. */
@@ -789,7 +831,20 @@ export interface ProductInfo {
   cautions: string[];
   /** How and when, in one line. */
   use: string;
+  /** A supplement only: whether it does what he takes it for, from reviews and trials (product-info-v2). */
+  evidence?: SupplementEvidence | null;
   sources: { title: string; url: string }[];
+}
+
+export const VERDICTS = ["funciona", "a medias", "sin pruebas"] as const;
+export type Verdict = (typeof VERDICTS)[number];
+
+export interface SupplementEvidence {
+  verdict: Verdict;
+  /** What the studies say, in one or two sentences, with the best one named. */
+  line: string;
+  /** The dose that was studied, and how his compares when he said his. */
+  dose: string;
 }
 
 /**
@@ -907,6 +962,36 @@ export const exerciseMoves = pgTable("exercise_moves", {
 });
 
 export type ExerciseMove = typeof exerciseMoves.$inferSelect;
+
+/** One exercise of a routine as it is prescribed: «3×12 por pierna», «3×30 s». */
+export interface RoutineExercise {
+  name: string;
+  sets?: number;
+  reps?: number;
+  /** A hold: how long, instead of reps. */
+  seconds?: number;
+  weightKg?: number;
+  /** «por pierna», «con banda», «descanso 60 s». */
+  note?: string;
+}
+
+/**
+ * The training routines he keeps («Rutina de pierna» that someone gave him),
+ * exercises in order (Javier, 22-oct-2026: «guardar tanto ejercicios como
+ * rutinas… y luego hacer partes de rutinas»). A training that did all or part
+ * of one points at it with `FactData.routineId`. Not the products' «Rutina de
+ * mañana», which lives in `products.moment`.
+ */
+export const trainingRoutines = pgTable("training_routines", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  exercises: jsonb("exercises").$type<RoutineExercise[]>().notNull(),
+  active: boolean("active").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type TrainingRoutine = typeof trainingRoutines.$inferSelect;
 
 /**
  * Every photo he sends, by WhatsApp or the panel, as a 640 px JPEG in

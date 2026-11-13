@@ -7,6 +7,7 @@ import { formatSpan } from "~/lib/categories";
 import { addDays, dayTitle, hm, localClock, localDay } from "~/lib/day";
 import { GROUPS, type GroupKey } from "~/lib/day-groups";
 import { kindLabel } from "~/lib/taxonomy";
+import { sportName } from "~/lib/sports";
 import { needMinutes, type SleepRaw } from "~/server/assistant/context";
 import { listCodeDays } from "./code";
 import { listActivities } from "./recordings";
@@ -59,22 +60,6 @@ export interface SaludData {
   pattern: WaPattern;
 }
 
-const SPORT: Record<string, string> = {
-  running: "Correr",
-  weightlifting: "Pesas",
-  "functional-fitness": "Funcional",
-  "strength-trainer": "Fuerza",
-  cycling: "Bici",
-  walking: "Andar",
-  "hiking/rucking": "Senderismo",
-  padel: "Pádel",
-  tennis: "Tenis",
-  soccer: "Fútbol",
-  swimming: "Nadar",
-  yoga: "Yoga",
-  activity: "Actividad",
-};
-export const sportName = (s: string) => SPORT[s] ?? s.charAt(0).toUpperCase() + s.slice(1);
 
 /** One thing that happened, before it is grouped. `short` is what it adds to its group's line. */
 interface Item {

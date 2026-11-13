@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "~/db";
 import { env } from "~/env";
@@ -6,17 +6,15 @@ import { checks, commitments, facts, whoopRecords } from "~/db/schema";
 import { addDays, hm, localDay, localMinutes } from "~/lib/day";
 import {
   brief,
-  dedupe,
   describe,
-  factActivity,
   freeWindows,
   bedtimeOf,
+  sessionsFrom,
   standing,
+  tickedLine,
   weekStart,
-  whoopActivity,
   type Check,
   type Standing,
-  type Session,
 } from "~/server/commitments/standing";
 import { sameActivities, type CommitmentChange } from "~/server/commitments/from-chat";
 import { ensureKind } from "~/server/kinds";
@@ -30,8 +28,17 @@ const startOf = (day: string) => new Date(`${day}T00:00:00+02:00`);
 const HISTORY_DAYS = 60;
 
 export async function loadCommitments(now = new Date()): Promise<Standing[]> {
-  const since = startOf(addDays(localDay(now), -HISTORY_DAYS));
-  const [list, workouts, training, ticks, members] = await Promise.all([
+  return (await loadCommitmentsAt([now]))[0] ?? [];
+}
+
+/**
+ * Where each commitment stood at several moments, from one read: «Hoy» and
+ * the six days before it. A past day only had what he had set by then.
+ */
+export async function loadCommitmentsAt(moments: Date[]): Promise<Standing[][]> {
+  const first = localDay(new Date(Math.min(...moments.map((m) => m.getTime()))));
+  const since = startOf(addDays(first, -HISTORY_DAYS));
+  const [list, workouts, training, drank, ticks, members] = await Promise.all([
     db.select().from(commitments).where(eq(commitments.active, true)).orderBy(asc(commitments.createdAt)),
     db
       .select()
@@ -42,43 +49,29 @@ export async function loadCommitments(now = new Date()): Promise<Standing[]> {
       .from(facts)
       .where(and(eq(facts.kind, "training"), gte(facts.at, since))),
     db
+      .select({ at: facts.at, data: facts.data })
+      .from(facts)
+      .where(and(eq(facts.kind, "meal"), gte(facts.at, since), sql`${facts.data} ? 'waterMl'`)),
+    db
       .select({ day: checks.day, commitmentId: checks.commitmentId, chatMessageId: checks.chatMessageId })
       .from(checks)
-      .where(gte(checks.day, addDays(localDay(now), -HISTORY_DAYS))),
+      .where(gte(checks.day, addDays(first, -HISTORY_DAYS))),
     loadMembers(),
   ]);
-  if (list.length === 0) return [];
+  if (list.length === 0) return moments.map(() => []);
   const marks: Check[] = ticks.flatMap((t) =>
     t.commitmentId === null ? [] : [{ day: t.day, commitmentId: t.commitmentId, photo: t.chatMessageId !== null }],
   );
 
-  const sessions: Session[] = [
-    ...workouts.flatMap((w): Session[] => {
-      if (w.kind !== "workout") return [];
-      const activity = whoopActivity(w.label);
-      if (!activity || !w.startAt) return [];
-      const meters = (w.raw as { score?: { distance_meter?: number } | null }).score?.distance_meter;
-      return [
-        {
-          at: w.startAt,
-          activity,
-          km: meters ? meters / 1000 : null,
-          minutes: w.durationSeconds ? Math.round(w.durationSeconds / 60) : null,
-          source: "whoop",
-        },
-      ];
-    }),
-    ...training.flatMap((f): Session[] => {
-      const activity = factActivity(f.data.training, f.summary);
-      return activity ? [{ at: f.at, activity, km: f.data.distanceKm ?? null, minutes: null, source: "fact" }] : [];
-    }),
-  ];
-  const all = dedupe(sessions);
+  const all = sessionsFrom(workouts.filter((w) => w.kind === "workout"), training);
+  const drinks = drank.map((d) => ({ at: d.at, liters: (d.data.waterMl ?? 0) / 1000 }));
   // A nap is not going to bed.
   const nights = workouts.flatMap((w) =>
     w.kind === "sleep" && w.startAt && !(w.raw as { nap?: boolean }).nap ? [bedtimeOf(w.startAt)] : [],
   );
-  return list.map((c) => ({ ...standing(c, all, marks, now, nights), members: members.get(c.title) }));
+  return moments.map((now) =>
+    list.filter((c) => c.createdAt <= now).map((c) => ({ ...standing(c, all, marks, now, nights, drinks), members: members.get(c.title) })),
+  );
 }
 
 /**
@@ -93,7 +86,7 @@ export async function commitmentLines(now: Date, all: Standing[]): Promise<strin
     for (const p of all) {
       const how = p.members?.length
         ? ` (rutina: ${p.members.map((m) => m.name).join(", ")}; un toque la marca entera)`
-        : p.commitment.proof === "photo" ? " (se demuestra con foto)" : p.commitment.proof === "check" ? " (lo marca él)" : "";
+        : p.commitment.proof === "auto" ? "" : " (lo marca él)";
       lines.push(`- [${p.commitment.id}] ${describe(p)}${p.doneToday && p.commitment.period === "week" ? ", hoy ya hecho" : ""}${how}`);
     }
   }
@@ -126,7 +119,7 @@ export async function commitmentLines(now: Date, all: Standing[]): Promise<strin
  * What he said in the chat, applied, and the lines that confirm it. 🚨 The
  * confirmation is written here, not by the model: a commitment he made, or a
  * pill he photographed, and never saw acknowledged is one he will not trust.
- * Same after a training that counts towards one: he sees where he stands.
+ * Same after a training or a drink that counts towards one: he sees where he stands.
  *
  * A `set` with the id of one he has, or for the same activities (or, for a
  * habit, the same title) and period, changes that one: never a second
@@ -136,6 +129,8 @@ export async function noteCommitments(input: {
   changes: CommitmentChange[];
   done: number[];
   trained: boolean;
+  /** He said he drank water: the water commitment shows how far he is. */
+  drank: boolean;
   /** The chat message's id when it carried a photo or a video. */
   photo: number | null;
   at: Date;
@@ -144,7 +139,6 @@ export async function noteCommitments(input: {
   const stopped: string[] = [];
   const touched = new Set<number>();
   const ticked = new Set<number>();
-  const needPhoto: string[] = [];
 
   for (const c of input.changes) {
     if (c.action === "stop") {
@@ -178,12 +172,8 @@ export async function noteCommitments(input: {
   const day = localDay(input.at);
   for (const id of input.done) {
     const c = active.find((a) => a.id === id);
-    // A bedtime is WHOOP's to say, not his.
-    if (!c || c.metric === "bedtime") continue;
-    if (c.proof === "photo" && input.photo === null) {
-      needPhoto.push(c.title);
-      continue;
-    }
+    // A bedtime is WHOOP's to say, not his; the water is what he says he drank.
+    if (!c || c.metric === "bedtime" || c.metric === "liters") continue;
     await db
       .insert(checks)
       .values({ day, key: `commitment-${id}`, commitmentId: id, chatMessageId: input.photo, source: "chat" })
@@ -192,19 +182,23 @@ export async function noteCommitments(input: {
     ticked.add(id);
   }
 
-  if (touched.size === 0 && ticked.size === 0 && stopped.length === 0 && needPhoto.length === 0 && !input.trained) return null;
+  if (touched.size === 0 && ticked.size === 0 && stopped.length === 0 && !input.trained && !input.drank) return null;
   const all = await loadCommitments(input.at);
+  const quiet = touched.size === 0 && ticked.size === 0;
+  const sport = (p: Standing) => p.commitment.activities.some((a) => a === "gym" || a === "run" || a === "bike");
   const shown = all.filter(
     (p) =>
       touched.has(p.commitment.id) ||
       ticked.has(p.commitment.id) ||
-      (input.trained && touched.size === 0 && ticked.size === 0 && p.commitment.activities.length > 0 && p.commitment.metric !== "bedtime"),
+      (quiet && ((input.trained && sport(p)) || (input.drank && p.commitment.metric === "liters"))),
   );
+  // A routine ticked has nothing to count: «Hecho. En ayunas.» read as two orders.
+  const plain = (p: Standing) => ticked.has(p.commitment.id) && !touched.has(p.commitment.id) && brief(p) === p.commitment.title;
   const lines = [
-    ...shown.map((p) => `${touched.has(p.commitment.id) ? "Apuntado. " : ticked.has(p.commitment.id) ? "Hecho. " : ""}${brief(p)}.`),
-    ...needPhoto.map((t) => `Para «${t}» necesito la foto: mándamela y lo marco.`),
+    ...shown.filter((p) => !plain(p)).map((p) => `${touched.has(p.commitment.id) ? "Apuntado. " : ticked.has(p.commitment.id) ? "Hecho. " : ""}${brief(p)}.`),
+    tickedLine(shown.filter(plain).map((p) => p.commitment.title)),
     ...stopped.map((t) => `Quitado: ${t}.`),
-  ];
+  ].filter((l): l is string => l !== null);
   return lines.length > 0 ? lines.join(" ") : null;
 }
 
@@ -219,8 +213,8 @@ export async function toggleCheck(input: { day: string; key: string }): Promise<
   const [c] = commitmentId === null ? [] : await db.select().from(commitments).where(eq(commitments.id, commitmentId)).limit(1);
   if (commitmentId !== null) {
     if (!c) return { error: "Ese compromiso ya no existe" };
-    if (c.proof === "photo") return { error: "Este se demuestra con una foto por WhatsApp" };
     if (c.metric === "bedtime") return { error: "La hora de dormir la dice el WHOOP" };
+    if (c.metric === "liters") return { error: "El agua se cuenta con lo que le dices al chat" };
   }
   const gone = await db
     .delete(checks)

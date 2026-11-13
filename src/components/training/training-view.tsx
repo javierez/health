@@ -8,14 +8,16 @@ import { dayLabel } from "~/components/balance-card";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Modal } from "~/components/ui/modal";
-import { addDays, daysBetween } from "~/lib/day";
+import { daysBetween } from "~/lib/day";
 import { ZONE_LABEL, type Zone } from "~/lib/exercises";
 import { cn } from "~/lib/utils";
 import type { Lift, Training, ZoneWeek } from "~/server/training/summary";
 import { BodyMap, Dot, HeatLegend, isForgotten, zoneFill } from "./body-map";
 import { Move } from "./move";
+import { RoutinesCard } from "./routines-card";
+import { SessionsCard, TodayCard } from "./sessions-card";
 
-const ASK = "Mándame un vídeo de una serie o dime «press banca 3×8 a 80».";
+const ASK = "Dime lo que entrenas: «press banca 3×8 a 80».";
 
 /**
  * «Entrenos» (Javier, 18-oct-2026: «qué estoy entrenando, cuánto levanto,
@@ -28,14 +30,10 @@ export function TrainingView({ training, today }: { training: Training; today: s
   const [muscle, setMuscle] = useState<Zone | null>(null);
   const shown = training.lifts.find((l) => l.name === open);
   const zone = training.zones.find((z) => z.zone === muscle);
-  const week = training.sessions.filter((s) => s.day > addDays(today, -7)).length;
   return (
     <div className="space-y-4">
       <header className="flex items-center gap-3 animate-rise motion-reduce:animate-none">
-        <div className="mr-auto flex min-w-0 items-baseline gap-3">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Entrenos</h1>
-          <span className="truncate text-sm text-gray-500">{week} de 7 días</span>
-        </div>
+        <h1 className="mr-auto text-2xl font-bold tracking-tight sm:text-3xl">Entrenos</h1>
         <Button asChild size="pill" variant="outline">
           <Link href="/?ver=panel">
             <ArrowLeft />
@@ -49,55 +47,37 @@ export function TrainingView({ training, today }: { training: Training; today: s
           {ASK}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
-          <Card className="p-4 animate-rise motion-reduce:animate-none lg:col-span-2" style={{ animationDelay: "0.08s" }}>
-            <p className="px-2 text-lg font-semibold text-gray-900">{training.next.title}</p>
-            <p className="mt-0.5 px-2 text-xs text-gray-500">{training.next.detail}</p>
-            <BodyMap zones={training.zones} onSelect={setMuscle} className="mx-auto mt-3 h-72 w-full max-w-md" />
-            <HeatLegend className="mt-2 justify-center" />
-            <Zones zones={training.zones} today={today} onOpen={setMuscle} />
-          </Card>
-
-          <div className="space-y-4 lg:col-span-3">
-            {training.lifts.length > 0 ? (
-              <Card className="p-4 animate-rise motion-reduce:animate-none" style={{ animationDelay: "0.16s" }}>
-                <h2 className="px-2 text-sm font-medium text-gray-900">Cuánto levantas</h2>
-                <ul className="mt-1">
-                  {training.lifts.map((l) => (
-                    <li key={l.name}>
-                      <LiftRow lift={l} onOpen={() => setOpen(l.name)} />
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ) : null}
-
-            <Card className="p-4 animate-rise motion-reduce:animate-none" style={{ animationDelay: "0.24s" }}>
-              <h2 className="px-2 text-sm font-medium text-gray-900">Sesiones</h2>
-              <ul className="mt-1 divide-y divide-gray-100">
-                {training.sessions.map((s) => (
-                  <li key={s.day} className="flex gap-3 px-2 py-2.5">
-                    <span className="w-12 shrink-0 pt-0.5 text-xs whitespace-nowrap text-gray-500">{dayLabel(s.day)}</span>
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      {s.lines.map((l) => (
-                        <p key={l.name} className="flex flex-wrap gap-x-2 text-sm">
-                          <span className="font-medium text-gray-900">{l.name}</span>
-                          <span className="text-gray-500 tabular-nums">{l.text}</span>
-                          {l.learning ? <span className="text-xs text-gray-400">buscando qué trabaja</span> : null}
-                        </p>
-                      ))}
-                      {s.said.map((t) => (
-                        <p key={t} className="text-sm text-gray-700">
-                          {t}
-                        </p>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+        <>
+          <TodayCard sessions={training.sessions} routines={training.routines} today={today} style={{ animationDelay: "0.08s" }} />
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+            <Card className="p-4 animate-rise motion-reduce:animate-none lg:col-span-2" style={{ animationDelay: "0.08s" }}>
+              <p className="px-2 text-lg font-semibold text-gray-900">{training.next.title}</p>
+              <p className="mt-0.5 px-2 text-xs text-gray-500">{training.next.detail}</p>
+              <BodyMap zones={training.zones} onSelect={setMuscle} className="mx-auto mt-3 h-72 w-full max-w-md" />
+              <HeatLegend className="mt-2 justify-center" />
+              <Zones zones={training.zones} today={today} onOpen={setMuscle} />
             </Card>
+
+            <div className="space-y-4 lg:col-span-3">
+              {training.lifts.length > 0 ? (
+                <Card className="p-4 animate-rise motion-reduce:animate-none" style={{ animationDelay: "0.16s" }}>
+                  <h2 className="px-2 text-sm font-medium text-gray-900">Cuánto levantas</h2>
+                  <ul className="mt-1">
+                    {training.lifts.map((l) => (
+                      <li key={l.name}>
+                        <LiftRow lift={l} onOpen={() => setOpen(l.name)} />
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : null}
+
+              <RoutinesCard routines={training.routines} style={{ animationDelay: "0.24s" }} />
+
+              <SessionsCard sessions={training.sessions} today={today} style={{ animationDelay: "0.32s" }} />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       <Modal open={shown !== undefined} onClose={() => setOpen(null)} title={shown?.name} className="w-[min(92vw,26rem)]">

@@ -7,6 +7,7 @@ import { env } from "~/env";
 import { addDays, localDay } from "~/lib/day";
 import { ROUTINES } from "~/lib/routines";
 import { isMood, moodOf, symptomsOf } from "~/lib/trackers";
+import { buildDays as buildWhoopDays } from "~/lib/whoop/days";
 import { buildDays, type Day, type Raw } from "~/server/insights/days";
 import { findings, type Findings } from "~/server/insights/findings";
 import { loadHypotheses } from "~/server/queries/hypotheses";
@@ -31,7 +32,16 @@ export const loadDays = cache(async (now = new Date()): Promise<Day[]> => {
   const author = env.GITHUB_LOGIN ?? "javierez";
   const [whoop, code, lateCode, codeRange, whatsapp, waRange, reads, pocket, pocketRange, heard, meals, uses, done, told] = await Promise.all([
     db
-      .select({ kind: whoopRecords.kind, day: whoopRecords.day, start: whoopRecords.startAt, end: whoopRecords.endAt, raw: whoopRecords.raw })
+      .select({
+        kind: whoopRecords.kind,
+        day: whoopRecords.day,
+        externalId: whoopRecords.externalId,
+        start: whoopRecords.startAt,
+        end: whoopRecords.endAt,
+        score: whoopRecords.score,
+        label: whoopRecords.label,
+        raw: whoopRecords.raw,
+      })
       .from(whoopRecords)
       .where(and(inArray(whoopRecords.kind, ["recovery", "sleep", "workout", "cycle"]), gte(whoopRecords.day, since))),
     db.execute<{ day: string; lines: number }>(sql`
@@ -55,9 +65,11 @@ export const loadDays = cache(async (now = new Date()): Promise<Day[]> => {
       select (select min(day) from (select day from wa_messages group by day having count(*) >= 20) d) as first,
         max(day) as last from wa_messages`),
     db.select({ day: waDays.day, mood: waDays.mood, summary: waDays.summary, chats: waDays.chats }).from(waDays).where(gte(waDays.day, since)),
-    db.execute<{ day: string; business: number; social: number; lines: string }>(sql`
+    db.execute<{ day: string; business: number; social: number; family: number; friends: number; lines: string }>(sql`
       select day, coalesce(sum(duration_seconds) filter (where category = 'business' and counterpart <> 'solo'), 0)::int / 60 as business,
         coalesce(sum(duration_seconds) filter (where category = 'social'), 0)::int / 60 as social,
+        coalesce(sum(duration_seconds) filter (where counterpart = 'family'), 0)::int / 60 as family,
+        coalesce(sum(duration_seconds) filter (where counterpart = 'friend'), 0)::int / 60 as friends,
         string_agg(one_liner, ' · ' order by id) as lines
       from episodes where is_current and day >= ${since} group by day`),
     db.execute<{ first: string | null; last: string | null }>(sql`select min(day) as first, max(day) as last from episodes where is_current`),
@@ -106,13 +118,27 @@ export const loadDays = cache(async (now = new Date()): Promise<Day[]> => {
     workouts: whoop.flatMap((w) =>
       w.kind === "workout" && w.day && w.end ? [{ day: w.day, end: w.end, sport: (w.raw as { sport_name?: string }).sport_name ?? "" }] : [],
     ),
+    activity: buildWhoopDays(whoop.map((w) => ({ ...w, startAt: w.start, endAt: w.end }))).map((d) => ({
+      day: d.day,
+      steps: d.steps,
+      moderate: d.z13Min,
+      vigorous: d.z45Min,
+      stress: d.stress,
+    })),
     code: code.map((c) => ({ day: c.day, lines: Number(c.lines) })),
     lateCode: lateCode.map((c) => c.day),
     codeRange: range(codeRange[0]),
     whatsapp: whatsapp.map((w) => ({ day: w.day, sent: Number(w.sent), late: Number(w.late), chats: Number(w.chats), last: new Date(w.last) })),
     whatsappRange: range(waRange[0]),
     waDays: reads,
-    pocket: pocket.map((p) => ({ day: p.day, business: Number(p.business), social: Number(p.social), lines: p.lines ?? "" })),
+    pocket: pocket.map((p) => ({
+      day: p.day,
+      business: Number(p.business),
+      social: Number(p.social),
+      family: Number(p.family),
+      friends: Number(p.friends),
+      lines: p.lines ?? "",
+    })),
     pocketRange: range(pocketRange[0]),
     talks: heard.flatMap((t) => (t.day && t.tone ? [{ day: t.day, tone: t.tone, topic: t.topic ?? null }] : [])),
     meals: meals.map((m) => {

@@ -1,6 +1,6 @@
 import type { FactData } from "~/db/schema";
 import { addDays, daysBetween } from "~/lib/day";
-import { exerciseOf, sportOf, ZONES, zonesIn, type Sport, type Work, type Zone } from "~/lib/exercises";
+import { exerciseName, exerciseOf, sportOf, ZONES, zonesIn, type Sport, type Work, type Zone } from "~/lib/exercises";
 import { kindKey } from "~/lib/renders";
 import { nextTraining, READY, type Next } from "./next";
 
@@ -41,6 +41,11 @@ export interface SessionLine {
   name: string;
   /** «3×8 · 80 kg», «80 kg ×8 · 85 kg ×6», «6 km · 32 min». */
   text: string;
+  /** Each set on its own: «80 kg ×8», «45 s», «×10». Empty when only the count is known, and for a sport. */
+  sets: string[];
+  /** A sport or WHOOP's «Pesas»: by time, not by sets. */
+  sport?: true;
+  move: Learned | null;
   /** Not known yet: the web is being asked what it works. */
   learning?: true;
 }
@@ -50,6 +55,12 @@ export interface Session {
   lines: SessionLine[];
   /** What he said when there is nothing to break down: «Gimnasio: pierna». */
   said: string[];
+  /** WHOOP's minutes, else the ones he said. */
+  minutes: number | null;
+  /** The saved routine it was all or part of (`training_routines`). */
+  routineId: number | null;
+  /** That routine by name, and how many of its exercises this day did: set by `queries/training`. */
+  routine?: { name: string; done: number; of: number };
 }
 
 /** What gave a muscle its sets: «Sentadilla» 4, «Correr» 2,1. */
@@ -78,11 +89,20 @@ export interface Lift {
   change: number | null;
 }
 
+/** A saved routine (`./routines`) as Entrenos shows it: each exercise with its drawing. */
+export interface RoutineCard {
+  id: number;
+  name: string;
+  exercises: { name: string; text: string; move: Learned | null }[];
+  last: { day: string; done: number } | null;
+}
+
 export interface Training {
   sessions: Session[];
   zones: ZoneWeek[];
   lifts: Lift[];
   next: Next;
+  routines: RoutineCard[];
 }
 
 const WEEK = 7;
@@ -103,16 +123,28 @@ const kg = (n: number) => `${num(n)} kg`;
 
 /** One exercise of one day, its sets together. */
 export function setsText(entries: Entry[]): string {
-  const same = entries.every((e) => e.reps === entries[0]!.reps && e.weightKg === entries[0]!.weightKg);
+  const same = entries.every((e) => e.reps === entries[0]!.reps && e.weightKg === entries[0]!.weightKg && e.seconds === entries[0]!.seconds);
   if (same) {
     const e = entries[0]!;
     const sets = entries.reduce((n, x) => n + (x.sets ?? 1), 0);
-    const work = e.reps ? `${sets}×${e.reps}` : `${sets} ${sets === 1 ? "serie" : "series"}`;
+    const work = e.reps ? `${sets}×${e.reps}` : e.seconds ? `${sets}×${num(e.seconds)} s` : `${sets} ${sets === 1 ? "serie" : "series"}`;
     return e.weightKg ? `${work} · ${kg(e.weightKg)}` : work;
   }
   return entries
-    .flatMap((e) => Array.from({ length: e.sets ?? 1 }, () => [e.weightKg ? kg(e.weightKg) : null, e.reps ? `×${e.reps}` : null].filter(Boolean).join(" ")))
+    .flatMap((e) =>
+      Array.from({ length: e.sets ?? 1 }, () =>
+        [e.weightKg ? kg(e.weightKg) : null, e.reps ? `×${e.reps}` : e.seconds ? `${num(e.seconds)} s` : null].filter(Boolean).join(" "),
+      ),
+    )
     .join(" · ");
+}
+
+/** One exercise of one day, set by set, as the pills of a session. */
+export function setsOf(entries: Entry[]): string[] {
+  return entries.flatMap((e) => {
+    const one = [e.weightKg ? kg(e.weightKg) : null, e.reps ? `×${e.reps}` : e.seconds ? `${num(e.seconds)} s` : null].filter(Boolean).join(" ");
+    return one ? Array.from({ length: e.sets ?? 1 }, () => one) : [];
+  });
 }
 
 /** «Andar 45 min», «Pádel 1 h», «hora y media de bici». */
@@ -125,7 +157,7 @@ export function minutesIn(text: string): number | null {
   return m[2]!.startsWith("min") ? n : n * 60;
 }
 
-const nameOf = (e: Entry) => exerciseOf(e.name)?.name ?? e.name.trim();
+const nameOf = (e: Entry) => exerciseName(e.name);
 const sportOfFact = (f: TrainingFact) => (f.data.training === "run" ? sportOf("correr") : sportOf(f.summary));
 
 interface Day {
@@ -136,7 +168,7 @@ interface Day {
   groups: Map<string, Entry[]>;
 }
 
-const learnedOf = (learned: Learned[], name: string) => learned.find((l) => l.key === kindKey(name)) ?? null;
+export const learnedOf = (learned: Learned[], name: string) => learned.find((l) => l.key === kindKey(name)) ?? null;
 
 function dayOf(day: string, facts: TrainingFact[], workouts: Workout[], learned: Learned[]): Day {
   const load: Day["load"] = [];
@@ -150,7 +182,8 @@ function dayOf(day: string, facts: TrainingFact[], workouts: Workout[], learned:
   for (const e of facts.flatMap((f) => f.data.exercises ?? [])) groups.set(nameOf(e), [...(groups.get(nameOf(e)) ?? []), e]);
   for (const [name, es] of groups) {
     const work = exerciseOf(name)?.work ?? learnedOf(learned, name)?.work ?? null;
-    lines.push({ name, text: setsText(es), ...(work || !learnedOf(learned, name) ? {} : { learning: true as const }) });
+    const move = learnedOf(learned, name);
+    lines.push({ name, text: setsText(es), sets: setsOf(es), move, ...(work || !move ? {} : { learning: true as const }) });
     if (work) give(work, name, es.reduce((n, e) => n + (e.sets ?? 1), 0));
   }
 
@@ -181,19 +214,24 @@ function dayOf(day: string, facts: TrainingFact[], workouts: Workout[], learned:
     const minutes = whoop ?? told;
     const min = minutes ?? (km && sport.minPerKm ? km * sport.minPerKm : DEFAULT_MINUTES);
     const text = [km ? `${num(km)} km` : null, minutes ? `${Math.round(minutes)} min` : null].filter(Boolean).join(" · ");
-    lines.push({ name: sport.name, text, ...(Object.keys(sport.work).length === 0 ? { learning: true as const } : {}) });
+    lines.push({ name: sport.name, text, sets: [], sport: true, move: learnedOf(learned, sport.name), ...(Object.keys(sport.work).length === 0 ? { learning: true as const } : {}) });
     give(sport.work, sport.name, Math.min(min, MAX_MINUTES) / 30);
   }
 
   // Weights WHOOP saw but he did not detail: the time, no muscles (it cannot know which).
   const gym = workouts.filter((w) => GYM.has(w.sport));
   if (gym.length > 0 && groups.size === 0 && said.length === 0) {
-    lines.push({ name: "Pesas", text: `${Math.round(gym.reduce((n, w) => n + w.minutes, 0))} min` });
+    lines.push({ name: "Pesas", text: `${Math.round(gym.reduce((n, w) => n + w.minutes, 0))} min`, sets: [], sport: true, move: null });
   }
-  return { session: { day, lines, said }, load, groups };
+  const whoop = workouts.reduce((n, w) => n + Math.min(w.minutes, MAX_MINUTES), 0);
+  const told = [...sports.values()].reduce((n, s) => n + (s.said ?? 0), 0);
+  const total = whoop > 0 ? whoop : told;
+  const minutes = total > 0 ? Math.round(total) : null;
+  const routineId = facts.find((f) => f.data.routineId)?.data.routineId ?? null;
+  return { session: { day, lines, said, minutes, routineId }, load, groups };
 }
 
-export function summarize(facts: TrainingFact[], today: string, workouts: Workout[] = [], learned: Learned[] = []): Training {
+export function summarize(facts: TrainingFact[], today: string, workouts: Workout[] = [], learned: Learned[] = []): Omit<Training, "routines"> {
   const dates = [...new Set([...facts.map((f) => f.day), ...workouts.map((w) => w.day)])].sort((a, b) => b.localeCompare(a));
   const days = dates
     .map((d) => dayOf(d, facts.filter((f) => f.day === d), workouts.filter((w) => w.day === d), learned))

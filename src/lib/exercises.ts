@@ -146,6 +146,19 @@ export function exerciseOf(name: string): Exercise | null {
   return EXERCISES.find((e) => e.match.some((m) => has(text, m))) ?? null;
 }
 
+/**
+ * The name it is shown and drawn under: the catalog's for a plain synonym
+ * («press de banca», «sentadillas»); a variant keeps its own («Sentadilla
+ * isométrica en pared», «Plancha de oso»): another movement, another drawing,
+ * still counted with the catalog's muscles.
+ */
+export function exerciseName(name: string): string {
+  const e = exerciseOf(name);
+  const t = plain(name).trim();
+  const same = (w: string) => t === w || t === `${w}s` || t === `${w}es`;
+  return e && (same(plain(e.name).trim()) || e.match.some(same)) ? e.name : name.trim();
+}
+
 /** The sport in what he said («Correr 6 km», «Bici: 21,5 km») or in WHOOP's name. */
 export function sportOf(text: string): Sport | null {
   const t = plain(text);

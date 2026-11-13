@@ -24,7 +24,7 @@ export const COMMITMENTS_FIELDS = {
         metric: { type: "string", enum: [...METRICS] },
         target: { type: "number" },
         period: { type: "string", enum: [...PERIODS] },
-        proof: { type: "string", enum: [...PROOFS] },
+        proof: { type: "string", enum: ["auto", "check"] },
       },
       required: ["action"],
     },
@@ -39,8 +39,9 @@ export const COMMITMENTS_FIELDS = {
 export const COMMITMENTS_RULES = `3. Compromisos. Si fija, cambia o deja algo a lo que se compromete, va a commitments: action set (nuevo o cambiado, con id si ya existe) o stop (lo deja, con su id).
 - De entreno ("4 veces al gimnasio a la semana", "40 km entre correr y bici"): activities entre gym, run y bike; metric sessions, km o minutes; proof auto.
 - De dormir ("nunca más tarde de la una", "a la cama antes de las 23:30"): activities [sleep], metric bedtime, target la hora en minutos desde medianoche (01:00 = 60, 23:30 = 1410, 00:00 = 0), period day, proof auto. Lo mide el WHOOP; no se marca a mano.
+- De agua ("2 litros al día"): activities [water], metric liters, target en litros, period day, proof auto. Cuenta el agua que apunta en sus comidas y bebidas (water_ml); no se marca a mano.
 - Una crema o un suplemento de cada día no es un hábito: va en su rutina de mañana, de noche o de antes de entrenar, con producto (rutina).
-- Cualquier otro hábito ("tomar la pastilla todos los días", "leer 20 min cada día", "llamar a mi madre dos veces por semana"): activities vacío, metric sessions. proof photo si una foto o un vídeo lo puede enseñar (la pastilla, el libro, la comida, el agua); check solo si no hay nada que enseñar (llamar a su madre, no mirar el móvil).
+- Cualquier otro hábito ("tomar la pastilla todos los días", "leer 20 min cada día", "llamar a mi madre dos veces por semana"): activities vacío, metric sessions. proof check: lo marca él de un toque o diciéndolo. Nunca le pidas una foto para demostrar un hábito: «don't ask me to do pics» (Javier, 22-oct-2026). Si manda una igual, cuenta como hecho.
 - target; period week o day; title corto ("Gimnasio", "Pastilla", "Leer").
 Un entreno hecho no es un compromiso: es un fact. Si dice o enseña que ha hecho uno de sus hábitos ("me he tomado la pastilla", una foto de la pastilla), pon su [id] en done. No confirmes nada de esto en reply: la confirmación con sus cifras se añade sola. Si pide verlos o el enlace, pon en reply el enlace a sus compromisos que tienes en sus datos, tal cual.`;
 
@@ -57,7 +58,7 @@ export type CommitmentChange =
     }
   | { action: "stop"; id: number | null; activities: Activity[] };
 
-const TITLE: Record<Activity, string> = { gym: "Gimnasio", run: "Correr", bike: "Bici", sleep: "Dormir" };
+const TITLE: Record<Activity, string> = { gym: "Gimnasio", run: "Correr", bike: "Bici", sleep: "Dormir", water: "Agua" };
 
 const change = z.object({
   action: z.enum(["set", "stop"]),
@@ -91,6 +92,12 @@ export function parseCommitments(input: unknown): { changes: CommitmentChange[];
         { action: "set", id, title: sinRayas(c.data.title ?? "Dormir"), activities: ["sleep"], metric: "bedtime", target: Math.round(t), period: "day", proof: "auto" },
       ];
     }
+    // Water too: litres a day, from what he says he drank, never ticked.
+    if (activities.includes("water") || c.data.metric === "liters") {
+      const t = c.data.target;
+      if (!t || t > 10 || (activities.length > 0 && activities.join() !== "water")) return [];
+      return [{ action: "set", id, title: sinRayas(c.data.title ?? "Agua"), activities: ["water"], metric: "liters", target: t, period: "day", proof: "auto" }];
+    }
     if (!c.data.target || (activities.length === 0 && !c.data.title)) return [];
     const habit = activities.length === 0;
     return [
@@ -103,7 +110,7 @@ export function parseCommitments(input: unknown): { changes: CommitmentChange[];
         target: c.data.target,
         period: c.data.period ?? "week",
         // A habit has nothing to arrive on its own: "auto" would never count.
-        proof: habit ? (c.data.proof === "photo" ? "photo" : "check") : (c.data.proof ?? "auto"),
+        proof: habit ? "check" : c.data.proof === "photo" ? "check" : (c.data.proof ?? "auto"),
       },
     ];
   });

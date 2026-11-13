@@ -10,7 +10,8 @@ export const metadata: Metadata = {
   description: "Todo lo grabado, leído en un solo sitio.",
   // Static files, not `app/icon.*`: no extra routes. The apple one is square, iOS rounds it.
   icons: { icon: "/icon.png", apple: "/apple-icon.png" },
-  appleWebApp: { title: "vlog", statusBarStyle: "default" },
+  // `capable`: from the iPhone's home screen it opens full screen, without Safari's bars.
+  appleWebApp: { capable: true, title: "vlog", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

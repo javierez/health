@@ -227,7 +227,7 @@ export function Chat({ initial }: { initial: ChatLine[] }) {
                       }
                     }}
                     placeholder="Escribe o toca el micro"
-                    className="max-h-40 flex-1 resize-none bg-transparent py-2.5 text-[15px] outline-none [field-sizing:content] placeholder:text-gray-400 sm:text-sm"
+                    className="max-h-40 flex-1 resize-none bg-transparent py-2.5 text-base outline-none [field-sizing:content] placeholder:text-gray-400 sm:text-sm"
                   />
                   <button
                     type="button"

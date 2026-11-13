@@ -20,6 +20,7 @@ import { Stats } from "~/components/stats";
 import { Button } from "~/components/ui/button";
 import { UrgentCard } from "~/components/urgent-card";
 import { WeekCard } from "~/components/week-card";
+import { WhoopView } from "~/components/whoop/whoop-view";
 import { env } from "~/env";
 import { localDay } from "~/lib/day";
 import { loadChat } from "~/server/queries/chat";
@@ -31,8 +32,9 @@ import { loadFood } from "~/server/queries/food";
 import { loadProgress } from "~/server/queries/progress";
 import { loadSalud } from "~/server/queries/salud";
 import { loadProducts } from "~/server/queries/products";
-import { loadToday } from "~/server/queries/today";
+import { loadPastDays, loadToday } from "~/server/queries/today";
 import { loadTraining } from "~/server/queries/training";
+import { loadWhoop } from "~/server/queries/whoop";
 import { loadMoods, loadTrackers } from "~/server/queries/trackers";
 import { olderThan, syncEverything } from "~/server/sync-all";
 
@@ -47,8 +49,9 @@ export const maxDuration = 300;
  * the chat by voice.
  */
 async function Panel() {
-  const [today, commitments, progress, data, findings, products, food, tracked, training, moods] = await Promise.all([
+  const [today, past, commitments, progress, data, findings, products, food, tracked, training, moods] = await Promise.all([
     loadToday(),
+    loadPastDays(),
     loadCommitments(),
     loadProgress(),
     loadSalud(),
@@ -80,7 +83,7 @@ async function Panel() {
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
         {/* Left, what is done today (to do, food, skin); right, the week and training. On a phone one list, «Piel» last. */}
         <div className="contents lg:col-span-3 lg:block lg:space-y-4">
-          <TodayCard today={today} style={{ animationDelay: "0.16s" }} />
+          <TodayCard today={today} past={past} style={{ animationDelay: "0.16s" }} />
           <FoodCard
             food={food}
             supplements={products.filter((p) => p.area === "suplemento")}
@@ -106,8 +109,8 @@ async function Panel() {
  * Home is the chat: everything he can do, he can ask for, typed or spoken.
  * The board is one tap away, at `?ver=panel`, and how things affect him at
  * `?ver=efectos`, his trainings at `?ver=entrenos`, his conversations at
- * `?ver=conversaciones` (same route: no new
- * entry in the routing table).
+ * `?ver=conversaciones`, every WHOOP screen at `?ver=whoop` (same route: no
+ * new entry in the routing table).
  */
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ ver?: string | string[] }> }) {
   // Opening the app is the freshest signal there is: if the last pass is
@@ -140,6 +143,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     return (
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <TrainingView training={await loadTraining()} today={localDay(new Date())} />
+      </main>
+    );
+  }
+  if (ver === "whoop") {
+    return (
+      <main className="px-4 py-6 sm:px-6 sm:py-8">
+        <WhoopView data={await loadWhoop()} />
       </main>
     );
   }

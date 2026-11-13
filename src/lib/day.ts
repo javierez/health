@@ -55,7 +55,45 @@ export function dayTitle(day: string, today: string): string {
   );
 }
 
+/**
+ * "lunes, 26 oct". The model is handed bare dates and cannot tell a Monday
+ * from them: on 26-oct-2026 «la consulta del lunes» was that afternoon and
+ * the morning note never said it.
+ */
+export function dayLong(day: string): string {
+  return new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }).format(noon(day));
+}
+
 /** L M X J V S D. */
 export function weekdayLetter(day: string): string {
   return new Intl.DateTimeFormat("es-ES", { weekday: "narrow", timeZone: "UTC" }).format(noon(day));
+}
+
+const wall = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Madrid's wall clock of an instant, as if it were UTC: the offset is the difference. */
+function wallAsUtc(d: Date): number {
+  const p = Object.fromEntries(wall.formatToParts(d).map((x) => [x.type, x.value]));
+  return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute));
+}
+
+/**
+ * `2026-10-16T18:00`, Madrid time, to the instant. Twice, because the offset
+ * on the guess can differ from the offset on the answer across a DST change.
+ */
+export function fromLocal(text: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/.exec(text.trim());
+  if (!m) return null;
+  const target = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+  let at = target;
+  for (let i = 0; i < 2; i++) at = target - (wallAsUtc(new Date(at)) - at);
+  return new Date(at);
 }

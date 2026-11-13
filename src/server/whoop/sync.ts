@@ -1,3 +1,5 @@
+import { and, inArray, like } from "drizzle-orm";
+
 import { db } from "~/db";
 import { whoopRecords, type WhoopKind } from "~/db/schema";
 import { localDay } from "~/lib/day";
@@ -42,7 +44,7 @@ export interface WhoopSyncReport {
   errors: string[];
 }
 
-interface Row {
+export interface Row {
   id: string;
   kind: WhoopKind;
   externalId: string;
@@ -56,7 +58,7 @@ interface Row {
   fetchedAt: Date;
 }
 
-function row(
+export function row(
   kind: WhoopKind,
   externalId: string,
   start: string | null,
@@ -91,7 +93,7 @@ export async function syncWhoop(opts: { since?: string } = {}): Promise<WhoopSyn
   const params: Record<string, string> = opts.since
     ? { start: new Date(opts.since).toISOString() }
     : {};
-  const fetched: Record<WhoopKind, number> = { cycle: 0, sleep: 0, recovery: 0, workout: 0, profile: 0, body: 0 };
+  const fetched: Record<WhoopKind, number> = { cycle: 0, sleep: 0, recovery: 0, workout: 0, profile: 0, body: 0, metric: 0 };
   const errors: string[] = [];
   const rows: Row[] = [];
 
@@ -142,6 +144,24 @@ export async function syncWhoop(opts: { since?: string } = {}): Promise<WhoopSyn
   for (const r of rows) {
     await db.insert(whoopRecords).values(r).onConflictDoUpdate({ target: whoopRecords.id, set: r });
   }
+  await dropEdgeStandIns(rows);
 
   return { fetched, errors };
+}
+
+/**
+ * The band's own numbers (`server/edge/ingest.ts`) only stand in for a day WHOOP
+ * has not scored. Once WHOOP's row for that kind and day lands, the stand-in
+ * goes, or the day would count twice.
+ */
+async function dropEdgeStandIns(rows: Row[]) {
+  const days = [...new Set(rows.flatMap((r) => (r.day ? [r.day] : [])))];
+  if (days.length === 0) return;
+  const real = new Set(rows.map((r) => `${r.kind}|${r.day}`));
+  const edge = await db
+    .select({ id: whoopRecords.id, kind: whoopRecords.kind, day: whoopRecords.day })
+    .from(whoopRecords)
+    .where(and(like(whoopRecords.externalId, "edge-%"), inArray(whoopRecords.day, days)));
+  const gone = edge.filter((e) => real.has(`${e.kind}|${e.day}`)).map((e) => e.id);
+  if (gone.length > 0) await db.delete(whoopRecords).where(inArray(whoopRecords.id, gone));
 }

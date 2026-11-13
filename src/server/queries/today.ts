@@ -1,14 +1,16 @@
-import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, ne } from "drizzle-orm";
 
 import { db } from "~/db";
-import { assistantMessages, chatMessages, facts, medical, whoopRecords, type Recommendation } from "~/db/schema";
-import { dayTitle, hm, localClock, localDay, localMinutes } from "~/lib/day";
+import { assistantMessages, facts, medical, whoopRecords, type Recommendation } from "~/db/schema";
+import { addDays, dayTitle, fromLocal, hm, localClock, localDay, localMinutes } from "~/lib/day";
+import { ROUTINE_TITLE } from "~/lib/routines";
+import { byMoment } from "~/lib/today-sections";
 import { loadNights } from "~/server/assistant/context";
-import { bedtimePlan, clock } from "~/server/assistant/plan";
-import { describeParts, hhmm, kindOf } from "~/server/commitments/standing";
+import { bedtimePlan, clock, type Night } from "~/server/assistant/plan";
+import { bedtimeOf, describeParts, hhmm, kindOf, sinceNoon, type Standing } from "~/server/commitments/standing";
 import type { Source } from "~/server/assistant/evidence";
 import { loadAdvice } from "./advice";
-import { checkedToday, loadCommitments } from "./commitments";
+import { checkedToday, loadCommitments, loadCommitmentsAt } from "./commitments";
 import { experimentsToday, tickKey } from "./experiments";
 
 /**
@@ -22,7 +24,8 @@ import { experimentsToday, tickKey } from "./experiments";
  * How a row gets done, decided here and not by him (16-oct-2026):
  * - on its own, from the data: bed (WHOOP), training (a WHOOP workout or a
  *   training he told the chat), a training commitment;
- * - with a photo or a video in the chat: meals, and a habit that asks for one;
+ * - from what he tells the chat: meals, in words, audio or a photo (Javier,
+ *   22-oct-2026: «y qué pasa si no quiero sacar una foto»), or his tick;
  * - a tick, only for what nothing can show: "nada de pantallas", "pide cita".
  * The tick lives in `checks` under the row's key, so the key must not move
  * when the note is rewritten.
@@ -41,7 +44,7 @@ export interface TodoRow {
   urgent: boolean;
   done: boolean;
   /** How it gets done: a tick, a photo or video in the chat, or on its own (null). */
-  tick: "check" | "photo" | null;
+  tick: "check" | null;
   /** Advice from `evidence.ts`: the paper or guideline behind it. */
   source?: Source;
   /** Advice only: under «Haz» or under «Evita». */
@@ -80,8 +83,8 @@ const TRAINING = new Set(["training", "gym", "run", "bike"]);
 /** What the data already proves today, for the note's rows. */
 export interface Proven {
   trained: boolean;
-  /** A meal sent to the chat as a photo or a video. */
-  mealPhoto: boolean;
+  /** A meal told to the chat: written, spoken or in a photo. */
+  meal: boolean;
 }
 
 /** The same title keeps its key (and its tick) when the morning note is rewritten. */
@@ -94,24 +97,33 @@ export function itemKey(title: string): string {
 export function fromItem(r: Recommendation, proven: Proven): Omit<TodoRow, "done"> & { done?: boolean } {
   const row = { key: itemKey(r.title), area: r.area, title: r.title, detail: r.detail.length > 0 ? r.detail : null, urgent: false };
   if (TRAINING.has(r.area) && !/descans/i.test(r.title)) return { ...row, tick: null, done: proven.trained };
-  if (r.area === "food") return { ...row, tick: "photo", done: proven.mealPhoto };
+  if (r.area === "food") return { ...row, tick: "check", done: proven.meal };
   return { ...row, tick: "check" };
 }
 
-export async function loadToday(now = new Date()): Promise<Today> {
+/** A past day (`loadPastDays`): no advice and no medical, nothing urgent, and bed done if he went by the time. */
+interface PastDay {
+  commitments: Standing[];
+  nights: Night[];
+}
+
+export async function loadToday(now = new Date(), past?: PastDay): Promise<Today> {
   const today = localDay(now);
   const [nights, [next], [note], [recovery], commitments, checked, [workout], factsToday, toAsk, trying] = await Promise.all([
-    loadNights(),
-    db
-      .select()
-      .from(medical)
-      .where(and(eq(medical.active, true), eq(medical.kind, "procedure"), gte(medical.onDay, today)))
-      .orderBy(asc(medical.onDay))
-      .limit(1),
+    past?.nights ?? loadNights(),
+    past
+      ? []
+      : db
+          .select()
+          .from(medical)
+          .where(and(eq(medical.active, true), eq(medical.kind, "procedure"), gte(medical.onDay, today)))
+          .orderBy(asc(medical.onDay))
+          .limit(1),
     db
       .select()
       .from(assistantMessages)
-      .where(eq(assistantMessages.day, today))
+      // The weekly reading is not the day's note: it lives on the WHOOP screen.
+      .where(and(eq(assistantMessages.day, today), ne(assistantMessages.kind, "reading")))
       .orderBy(desc(assistantMessages.createdAt))
       .limit(1),
     db
@@ -119,7 +131,7 @@ export async function loadToday(now = new Date()): Promise<Today> {
       .from(whoopRecords)
       .where(and(eq(whoopRecords.kind, "recovery"), eq(whoopRecords.day, today)))
       .limit(1),
-    loadCommitments(now),
+    past?.commitments ?? loadCommitments(now),
     checkedToday(today),
     db
       .select({ id: whoopRecords.id })
@@ -127,26 +139,33 @@ export async function loadToday(now = new Date()): Promise<Today> {
       .where(and(eq(whoopRecords.kind, "workout"), eq(whoopRecords.day, today)))
       .limit(1),
     db
-      .select({ kind: facts.kind, type: chatMessages.type })
+      .select({ kind: facts.kind })
       .from(facts)
-      .leftJoin(chatMessages, eq(chatMessages.id, facts.chatMessageId))
       .where(and(eq(facts.day, today), inArray(facts.kind, ["training", "meal"]))),
-    db
-      .select()
-      .from(medical)
-      .where(and(eq(medical.active, true), eq(medical.kind, "pending")))
-      .orderBy(asc(medical.createdAt))
-      .limit(3),
+    past
+      ? []
+      : db
+          .select()
+          .from(medical)
+          .where(and(eq(medical.active, true), eq(medical.kind, "pending")))
+          .orderBy(asc(medical.createdAt))
+          .limit(3),
     experimentsToday(today),
   ]);
   const proven: Proven = {
     trained: !!workout || factsToday.some((f) => f.kind === "training"),
-    mealPhoto: factsToday.some((f) => f.kind === "meal" && (f.type === "image" || f.type === "video")),
+    meal: factsToday.some((f) => f.kind === "meal"),
   };
 
   // His cap, if he set one, goes with the bedtime row: one row about bed, not two.
   const cap = commitments.find((c) => c.commitment.metric === "bedtime");
-  const plan = bedtimePlan(nights, cap?.commitment.target ?? null);
+  // The plan as it was that day: the nights before it, not the one that came after.
+  const plan = bedtimePlan(
+    nights.filter((n) => n.end <= now),
+    cap?.commitment.target ?? null,
+    now,
+  );
+  const night = nights.find((n) => bedtimeOf(n.start).day === today);
   const step = plan.bedMinutes !== plan.idealMinutes;
   const nowMin = localMinutes(now);
   const sinceBed = (nowMin - plan.bedMinutes + 1440) % 1440;
@@ -160,16 +179,21 @@ export async function loadToday(now = new Date()): Promise<Today> {
       // WHOOP says when he went to bed; a tick would only be his word for it.
       tick: null,
       title: step ? `A la cama antes de las ${clock(plan.bedMinutes)}` : `A la cama a las ${clock(plan.bedMinutes)}`,
-      detail: [
-        late ? `Tocaba hace ${hm(sinceBed)}` : `En ${hm(toBed)}`,
-        step
-          ? `tu paso de esta semana; la meta, las ${clock(plan.idealMinutes)} para dormir ${hm(plan.needMinutes)}`
-          : `dormir ${hm(plan.needMinutes)}, arriba a las ${clock(plan.wakeMinutes)}`,
-        cap && cap.commitment.target !== plan.bedMinutes ? `tope ${hhmm(cap.commitment.target)}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
+      detail: past
+        ? night
+          ? `Te acostaste a las ${localClock(night.start)}`
+          : "WHOOP no tiene esa noche"
+        : [
+            late ? `Tocaba hace ${hm(sinceBed)}` : `En ${hm(toBed)}`,
+            step
+              ? `tu paso de esta semana; la meta, las ${clock(plan.idealMinutes)} para dormir ${hm(plan.needMinutes)}`
+              : `dormir ${hm(plan.needMinutes)}, arriba a las ${clock(plan.wakeMinutes)}`,
+            cap && cap.commitment.target !== plan.bedMinutes ? `tope ${hhmm(cap.commitment.target)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
       urgent: late || toBed <= 40,
+      done: !!past && !!night && sinceNoon(localMinutes(night.start)) <= sinceNoon(plan.bedMinutes),
     },
   ];
 
@@ -197,6 +221,8 @@ export async function loadToday(now = new Date()): Promise<Today> {
   for (const c of commitments) {
     const needsHim = c.status === "behind" || c.status === "tight" || c.status === "pending";
     if (c.commitment.metric === "bedtime" || !(c.commitment.period === "day" || c.doneToday || needsHim)) continue;
+    // «Antes de entrenar» only once he trained: then it is asked (`~/server/agent/after-training`).
+    if (c.commitment.title === ROUTINE_TITLE.entreno && c.status !== "pending" && !c.doneToday) continue;
     const key = `commitment-${c.commitment.id}`;
     if (c.doneToday) doneByCommitment.add(key);
     const members = c.members ?? [];
@@ -207,8 +233,9 @@ export async function loadToday(now = new Date()): Promise<Today> {
       ...describeParts(c),
       // A routine says what goes in it: «Hyalu B5 Serum · Eye Care Cream».
       ...(members.length > 0 ? { detail: members.map((m) => m.name).join(" · "), kinds: members.map((m) => m.kind) } : {}),
-      urgent: needsHim && !c.doneToday,
-      tick: c.commitment.proof === "photo" ? "photo" : c.tickable ? "check" : null,
+      // Amber only when it is falling behind: a daily habit not done yet is just today's list.
+      urgent: (c.status === "behind" || c.status === "tight") && !c.doneToday,
+      tick: c.tickable ? "check" : null,
     });
   }
 
@@ -232,18 +259,31 @@ export async function loadToday(now = new Date()): Promise<Today> {
   }
 
   // Advice the data backs, after the day's list: never more than three.
-  const advice = await loadAdvice(now, nights, plan.bedMinutes, commitments);
+  const advice = past ? [] : await loadAdvice(now, nights, plan.bedMinutes, commitments);
   // Something to leave has nothing to tick: it is done by not doing it.
   rows.push(...advice.map((a) => ({ ...a, urgent: false, tick: a.verb === "evita" ? null : ("check" as const) })));
 
   return {
     day: today,
-    rows: rows.map((r) => ({
-      ...r,
-      done: !!r.done || doneByCommitment.has(r.key) || (!r.key.startsWith("commitment-") && checked.has(r.key)),
-    })),
+    rows: byMoment(
+      rows.map((r) => ({
+        ...r,
+        urgent: r.urgent && !past,
+        done: !!r.done || doneByCommitment.has(r.key) || (!r.key.startsWith("commitment-") && checked.has(r.key)),
+      })),
+      past ? null : nowMin,
+      plan.bedMinutes,
+    ),
     date: new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" }).format(now),
     source: items.length > 0 && note ? `Nota de las ${localClock(note.createdAt)}` : null,
     pending: toAsk.map((p) => ({ id: p.id, title: p.title, details: p.details, topic: p.topic })),
   };
+}
+
+/** The six days before today, each as it stood at its last minute: did he get it all done. */
+export async function loadPastDays(now = new Date()): Promise<Today[]> {
+  const today = localDay(now);
+  const ends = [6, 5, 4, 3, 2, 1].map((n) => fromLocal(`${addDays(today, -n)}T23:59`) ?? now);
+  const [nights, commitments] = await Promise.all([loadNights(), loadCommitmentsAt(ends)]);
+  return Promise.all(ends.map((end, i) => loadToday(end, { nights, commitments: commitments[i] ?? [] })));
 }

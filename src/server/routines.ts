@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "~/db";
 import { commitments, productUses, products, MOMENTS } from "~/db/schema";
-import { isRoutine, ROUTINE_TITLE, routineTitle, sameProduct, type Member } from "~/lib/routines";
+import { isRoutine, ROUTINE_TITLE, routinesOf, sameProduct, type Member, type RoutineMoment } from "~/lib/routines";
 
 /** Each routine's products, by the title of its commitment. */
 export async function loadMembers(): Promise<Map<string, Member[]>> {
@@ -13,8 +13,7 @@ export async function loadMembers(): Promise<Map<string, Member[]>> {
     .orderBy(asc(products.id));
   const map = new Map<string, Member[]>();
   for (const { moment, ...p } of rows) {
-    const title = routineTitle(moment);
-    if (title) map.set(title, [...(map.get(title) ?? []), p]);
+    for (const m of routinesOf(moment)) map.set(ROUTINE_TITLE[m], [...(map.get(ROUTINE_TITLE[m]) ?? []), p]);
   }
   return map;
 }
@@ -27,8 +26,7 @@ export async function loadMembers(): Promise<Map<string, Member[]>> {
 export async function syncRoutines(): Promise<void> {
   const members = await loadMembers();
   const all = await db.select().from(commitments);
-  for (const moment of MOMENTS) {
-    const title = ROUTINE_TITLE[moment];
+  for (const title of Object.values(ROUTINE_TITLE)) {
     const want = (members.get(title)?.length ?? 0) > 0;
     // The same row comes back, and with it the days already ticked.
     const row = all.find((c) => c.title === title);
@@ -47,13 +45,14 @@ export async function syncRoutines(): Promise<void> {
  * is still compared on its own in «Cómo te afecta» (creams never are).
  */
 export async function markRoutine(title: string, day: string, on: boolean): Promise<void> {
-  const moment = MOMENTS.find((m) => ROUTINE_TITLE[m] === title);
+  const moment = (Object.keys(ROUTINE_TITLE) as RoutineMoment[]).find((m) => ROUTINE_TITLE[m] === title);
   if (!moment) return;
+  const moments = MOMENTS.filter((m) => routinesOf(m).includes(moment));
   const ids = (
     await db
       .select({ id: products.id })
       .from(products)
-      .where(and(eq(products.moment, moment), isNull(products.retiredAt)))
+      .where(and(inArray(products.moment, moments), isNull(products.retiredAt)))
   ).map((p) => p.id);
   if (ids.length === 0) return;
   if (on) await db.insert(productUses).values(ids.map((productId) => ({ productId, day }))).onConflictDoNothing();

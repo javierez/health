@@ -3,11 +3,10 @@
 import type { CSSProperties } from "react";
 import { Camera, Check, Flame, Moon } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
 import { weekdayLetter } from "~/lib/day";
 import { cn } from "~/lib/utils";
 import { amount, describeParts, hhmm, kindOf, type DayMark, type Standing, type Status } from "~/server/commitments/standing";
-import { chatLink, Render, Tip, useTick } from "./tick";
+import { Render, Tip, useTick } from "./tick";
 
 /**
  * One commitment whole, for the modal «Esta semana» opens: a ring that draws
@@ -40,7 +39,9 @@ export function CommitmentCard({ s, today, delay = 0 }: { s: Standing; today: st
     ? s.members.map((m) => m.name).join(" · ")
     : bed
       ? "Lo mide el WHOOP"
-      : proof === "photo" ? "Se demuestra con una foto o un vídeo" : proof === "check" ? "Lo marcas tú" : "Se cuenta solo";
+      : metric === "liters"
+        ? "Se cuenta con lo que le dices al chat que bebes"
+        : proof === "auto" ? "Se cuenta solo" : "Lo marcas tú";
   const line = bed
     ? describeParts(s).detail.replace(/^./, (ch) => ch.toUpperCase())
     : s.status === "done"
@@ -92,14 +93,6 @@ export function CommitmentCard({ s, today, delay = 0 }: { s: Standing; today: st
         {!(daily && target === 1) ? <Render area={area} title={title} kind={kind} size={72} className="-my-3" /> : null}
       </div>
       {metric === "sessions" || bed ? <Dots s={s} today={today} delay={delay + 0.3} /> : <Bars s={s} today={today} delay={delay + 0.3} />}
-      {proof === "photo" && !s.doneToday ? (
-        <Button asChild size="pill" className="mt-4 w-full">
-          <a href={chatLink(`Foto: ${title}`)} target="_blank" rel="noreferrer">
-            <Camera />
-            Mandar la foto o el vídeo de hoy
-          </a>
-        </Button>
-      ) : null}
     </div>
   );
 }
@@ -202,8 +195,8 @@ function Dot({ s, d, today, delay }: { s: Standing; d: DayMark; today: string; d
   // A night past the cap is marked, in amber: it happened, it just did not count.
   const late = bed && d.by === "auto" && d.value === 0;
   const filled = (d.by === "auto" && !late) || on;
-  // A day the data filled is not his to untick; a photo is proven in the chat.
-  const canTick = !future && s.tickable && d.by !== "auto" && d.by !== "photo" && s.commitment.proof !== "photo";
+  // A day the data or a photo filled is not his to untick.
+  const canTick = !future && s.tickable && d.by !== "auto" && d.by !== "photo";
   const tip = future
     ? dayName(d.day)
     : bed

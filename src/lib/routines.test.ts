@@ -1,4 +1,4 @@
-import { isRoutine, routineTitle, sameProduct } from "./routines";
+import { isRoutine, routinesOf, routineTitle, sameProduct } from "./routines";
 
 let passed = 0;
 const failures: string[] = [];
@@ -11,7 +11,12 @@ function check(name: string, actual: unknown, expected: unknown) {
 check("morning", routineTitle("mañana"), "Rutina de mañana");
 check("night", routineTitle("noche"), "Rutina de noche");
 check("before training", routineTitle("entreno"), "Antes de entrenar");
+check("fasting, the supplement protocol", routineTitle("ayunas"), "En ayunas");
+check("mid-morning", routineTitle("media mañana"), "Media mañana");
 check("no moment, no routine", routineTitle(null), null);
+check("a cleanser morning and night is in both routines", routinesOf("mañana y noche"), ["mañana", "noche"]);
+check("and says both", routineTitle("mañana y noche"), "Rutinas de mañana y de noche");
+check("one moment, one routine", routinesOf("ayunas"), ["ayunas"]);
 check("a moment that is not a routine", routineTitle("tarde"), null);
 check("a routine by its title", [isRoutine("Rutina de noche"), isRoutine("Pastilla")], [true, false]);
 
