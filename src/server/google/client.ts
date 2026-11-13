@@ -78,7 +78,7 @@ async function persist(token: TokenResponse, keepRefresh: string | null): Promis
     scope: token.scope ?? null,
     updatedAt: new Date(),
   };
-  await db.insert(oauthTokens).values(row).onConflictDoUpdate({ target: oauthTokens.provider, set: row });
+  await db.insert(oauthTokens).values(row).onConflictDoUpdate({ target: [oauthTokens.userId, oauthTokens.provider], set: row });
 }
 
 export async function exchangeCode(code: string): Promise<GoogleResult<null>> {

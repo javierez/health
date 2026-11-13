@@ -72,7 +72,7 @@ export async function importMessages(opts: {
         .insert(waMessages)
         .values(rows)
         .onConflictDoUpdate({
-          target: waMessages.id,
+          target: [waMessages.userId, waMessages.id],
           set: { body: sql`excluded.body` },
           setWhere: sql`${waMessages.body} is null and excluded.body is not null`,
         })
@@ -191,7 +191,7 @@ export async function readDays(opts: { before: string; limit: number; errors: st
     await db
       .insert(waDays)
       .values({ day, ...row })
-      .onConflictDoUpdate({ target: waDays.day, set: { ...row, createdAt: new Date() } });
+      .onConflictDoUpdate({ target: [waDays.userId, waDays.day], set: { ...row, createdAt: new Date() } });
     done.push({ day, heard, ok: true });
   }
   return done;

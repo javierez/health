@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 
+import { asOwner } from "~/db";
 import { ingestOne, sweep } from "~/server/pocket/ingest";
 
 export const maxDuration = 300;
@@ -60,9 +61,12 @@ export async function POST(
   // Answer first, work after: a slow answer makes Pocket retry, and each
   // retry would pay for the same classification again.
   const id = ID_PATHS.map((path) => readPath(payload, path)).find(Boolean);
-  after(async () => {
-    if (id) await ingestOne(id);
-    else await sweep({ limit: 20 });
-  });
+  // His Pocket, his rows (`~/db`): nobody is signed in on a webhook.
+  after(() =>
+    asOwner(async () => {
+      if (id) await ingestOne(id);
+      else await sweep({ limit: 20 });
+    }),
+  );
   return NextResponse.json({ success: true, data: { id: id ?? null } });
 }

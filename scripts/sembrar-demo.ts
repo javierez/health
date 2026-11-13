@@ -15,7 +15,7 @@
  */
 import { sql } from "drizzle-orm";
 
-import { db } from "~/db";
+import { adminDb, db } from "~/db";
 import {
   assistantMessages,
   chatMessages,
@@ -232,7 +232,8 @@ if (!write) {
   process.exit(0);
 }
 
-await db.execute(sql`truncate whoop_records, facts, product_uses, products, checks, commitments, chat_messages, assistant_messages, medical, reminders, sync_state restart identity cascade`);
+// `pulso_user` cannot truncate (and RLS does not stop a truncate): as postgres.
+await adminDb.execute(sql`truncate whoop_records, facts, product_uses, products, checks, commitments, chat_messages, assistant_messages, medical, reminders, sync_state restart identity cascade`);
 for (let i = 0; i < whoop.length; i += 500) await db.insert(whoopRecords).values(whoop.slice(i, i + 500));
 await db.insert(whoopRecords).values({ id: "body:me", kind: "body", externalId: "me", raw: { height_meter: 1.8, weight_kilogram: 78, max_heart_rate: 188 } });
 for (let i = 0; i < told.length; i += 500) await db.insert(facts).values(told.slice(i, i + 500));

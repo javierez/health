@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { after, NextResponse } from "next/server";
 
 import { env } from "~/env";
+import { asOwner } from "~/db";
 import { syncWhoopRecent } from "~/server/sync-all";
 
 export const maxDuration = 300;
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   }
 
   // WHOOP waits a few seconds at most; the pull runs after the answer.
-  after(syncWhoopRecent);
+  // His band, his rows (`~/db`): nobody is signed in on a webhook.
+  after(() => asOwner(syncWhoopRecent));
   return NextResponse.json({ success: true });
 }

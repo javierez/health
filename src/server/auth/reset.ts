@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { and, count, desc, eq, gt, isNull, lt, sql, type SQL } from "drizzle-orm";
 
-import { db } from "~/db";
+import { adminDb as db, ownerId } from "~/db";
 import { authResetCodes } from "~/db/schema";
 import { env } from "~/env";
 import { auth } from "~/lib/auth";
@@ -12,6 +12,9 @@ import { sendSms } from "~/server/sms";
  * «¿Olvidaste tu contraseña?», Vesta's flow (src/server/actions/password-reset.ts
  * there): a 6-digit code by SMS to his phone, hashed, 5 minutes, used once,
  * only the newest valid, and the same answer whether the email is his or not.
+ * Only his account: the one phone there is is his, so anyone else's new
+ * password is his to set with `scripts/crear-usuario.ts`. As `adminDb`: no
+ * one is signed in yet.
  * Three things Vesta lacks: a code dies after 5 wrong tries, a new password
  * signs out every device, and the limits live in this table, not in memory.
  */
@@ -65,6 +68,11 @@ export async function requestCode(email: string, ip: string | null): Promise<Res
     expiresAt: new Date(Date.now() + CODE_MINUTES * 60_000),
     ip,
   });
+  // Someone else's code would reach his phone: the same «sent», and nothing goes.
+  if (found.user.id !== (await ownerId())) {
+    console.warn("[reset] código pedido para otra cuenta: su contraseña nueva la pone él con crear-usuario");
+    return { success: true };
+  }
   // A failed SMS answers «sent» too (Vesta's): the reason goes to the log.
   await sendSms(env.WHATSAPP_TO, `Tu código de verificación de Salud es: ${code}. Válido por ${CODE_MINUTES} minutos.`);
   return { success: true };

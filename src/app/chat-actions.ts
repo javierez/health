@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { after } from "next/server";
 
-import { db } from "~/db";
+import { db, isOwner } from "~/db";
 import { chatMessages } from "~/db/schema";
 import type { Part } from "~/server/agent/parts";
 import { agentTurn } from "~/server/agent/turn";
@@ -93,7 +93,8 @@ async function answer(row: typeof chatMessages.$inferSelect, body: string | null
     )
     .returning();
   // A sync takes minutes: the reply goes now, the data arrives behind it.
-  if (turn.sync) after(() => syncEverything());
+  // His sources only: someone else asking pulls nothing of his.
+  if (turn.sync && (await isOwner())) after(() => syncEverything());
 
   const today = localDay(new Date());
   return {

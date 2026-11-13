@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { and, eq, lt, sql } from "drizzle-orm";
 
-import { db } from "~/db";
+import { asMeLater, db } from "~/db";
 import { kinds } from "~/db/schema";
 import { env } from "~/env";
 import { bakedFor, kindKey } from "~/lib/renders";
@@ -49,10 +49,10 @@ export async function ensureKind(name: string, photo?: { data: Buffer; mime: str
   return key;
 }
 
-/** In a request, after the response; in a script, now. */
+/** In a request, after the response; in a script, now. Either way, for whoever asked. */
 export function later(job: () => Promise<unknown>) {
   try {
-    after(job);
+    after(asMeLater(job));
   } catch {
     void job();
   }

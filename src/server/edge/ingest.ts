@@ -171,7 +171,7 @@ export async function storeRows(rows: Row[]): Promise<{ stored: number; skipped:
           );
   const fresh = fillIn(rows.filter((r) => !taken.has(`${r.kind}|${r.day}`)), past);
   for (const r of fresh) {
-    await db.insert(whoopRecords).values(r).onConflictDoUpdate({ target: whoopRecords.id, set: r });
+    await db.insert(whoopRecords).values(r).onConflictDoUpdate({ target: [whoopRecords.userId, whoopRecords.id], set: r });
   }
   return { stored: fresh.length, skipped: rows.length - fresh.length };
 }

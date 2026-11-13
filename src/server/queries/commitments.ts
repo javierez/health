@@ -177,7 +177,7 @@ export async function noteCommitments(input: {
     await db
       .insert(checks)
       .values({ day, key: `commitment-${id}`, commitmentId: id, chatMessageId: input.photo, source: "chat" })
-      .onConflictDoUpdate({ target: [checks.day, checks.key], set: { chatMessageId: input.photo } });
+      .onConflictDoUpdate({ target: [checks.userId, checks.day, checks.key], set: { chatMessageId: input.photo } });
     await markRoutine(c.title, day, true);
     ticked.add(id);
   }

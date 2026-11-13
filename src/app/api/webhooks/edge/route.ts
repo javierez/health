@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { asOwner } from "~/db";
 import { env } from "~/env";
 import { appleHealthSchema, ingestAppleHealth } from "~/server/edge/apple-health";
 import { edgePushSchema, ingestEdge, keepPush } from "~/server/edge/ingest";
@@ -13,6 +14,11 @@ import { edgePushSchema, ingestEdge, keepPush } from "~/server/edge/ingest";
  * it came (`edge_pushes`) before either reads it.
  */
 export async function POST(request: Request) {
+  // His band, his rows (`~/db`): nobody is signed in on a webhook.
+  return asOwner(() => receive(request));
+}
+
+async function receive(request: Request) {
   const given = Buffer.from(request.headers.get("authorization") ?? "");
   const expected = Buffer.from(`Bearer ${env.EDGE_PUSH_SECRET ?? ""}`);
   if (!env.EDGE_PUSH_SECRET || given.length !== expected.length || !timingSafeEqual(given, expected)) {

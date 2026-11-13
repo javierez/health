@@ -85,7 +85,7 @@ async function persist(token: TokenResponse): Promise<void> {
   await db
     .insert(oauthTokens)
     .values(row)
-    .onConflictDoUpdate({ target: oauthTokens.provider, set: row });
+    .onConflictDoUpdate({ target: [oauthTokens.userId, oauthTokens.provider], set: row });
 }
 
 /** Step 6 of the flow: the one-time code becomes a stored grant. */
@@ -114,9 +114,9 @@ async function accessToken(): Promise<WhoopResult<string>> {
   // sync at once, and refresh tokens rotate: the second refresh would send a
   // token the first one already killed, and the grant is gone until someone
   // re-authorises by hand. The lock serialises them; whoever waited reads the
-  // token the winner stored.
+  // token the winner stored. One lock per person: each has their own grant.
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('whoop-refresh'))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('whoop-refresh:' || current_setting('app.user_id', true)))`);
     const fresh = await readToken();
     if (!fresh) return { ok: false as const, reason: "not connected — visit /api/whoop/oauth" };
     if (fresh.expiresAt.getTime() - EXPIRY_MARGIN_MS > Date.now()) {

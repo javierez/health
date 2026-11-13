@@ -1,6 +1,6 @@
 import { notLike, sql } from "drizzle-orm";
 
-import { db } from "~/db";
+import { asOwner, db } from "~/db";
 import { whoopRecords } from "~/db/schema";
 import { env } from "~/env";
 import { localDay } from "~/lib/day";
@@ -26,8 +26,15 @@ import { syncWhoop } from "~/server/whoop/sync";
  *
  * Callers: the 10-minute tick, the daily cron, the board when it is stale,
  * the sync button.
+ *
+ * Always as him, whoever starts it: the Pocket, WHOOP, GitHub and WhatsApp
+ * keys are his, so is what they bring (`~/db`, 13-nov-2026).
  */
-export async function syncEverything() {
+export function syncEverything() {
+  return asOwner(syncAll);
+}
+
+async function syncAll() {
   // The demo has no sources and spends nothing: its data is seeded.
   if (env.DEMO_MODE) return { demo: true };
   // The question after training joins the reminders, so it leaves in this same pass.

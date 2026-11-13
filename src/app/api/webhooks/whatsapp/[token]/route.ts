@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 
+import { asOwner } from "~/db";
 import { handleWebhook } from "~/server/chat/handle";
 
 export const maxDuration = 300;
@@ -25,6 +26,7 @@ export async function POST(
   const payload: unknown = await request.json().catch(() => null);
   if (!payload) return NextResponse.json({ success: false, error: "bad json" }, { status: 400 });
 
-  after(() => handleWebhook(payload));
+  // His number, his chat (`~/db`): nobody is signed in on a webhook.
+  after(() => asOwner(() => handleWebhook(payload)));
   return NextResponse.json({ success: true });
 }

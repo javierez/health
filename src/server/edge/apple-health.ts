@@ -133,7 +133,7 @@ export async function ingestAppleHealth(push: AppleHealthPush) {
       .insert(whoopRecords)
       .values(r)
       .onConflictDoUpdate({
-        target: whoopRecords.id,
+        target: [whoopRecords.userId, whoopRecords.id],
         set: {
           raw: sql`jsonb_set(excluded.raw, '{data}', (select coalesce(jsonb_agg(distinct x), '[]'::jsonb) from jsonb_array_elements((whoop_records.raw->'data') || (excluded.raw->'data')) x))`,
           fetchedAt: r.fetchedAt,

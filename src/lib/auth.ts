@@ -2,20 +2,21 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 
-import { db } from "~/db";
+import { adminDb } from "~/db";
 import { authAccount, authSession, authUser, authVerification } from "~/db/schema";
 import { env } from "~/env";
 
 /**
- * Vesta's login (src/lib/auth.ts there), for one person: email and password,
- * Google when its keys are set, 7-day sessions with a 5-minute encrypted
- * cookie cache, 5 tries a minute. Nobody signs up: the one user is made by
- * `scripts/crear-usuario.ts`, and Google only lets in an email already there.
+ * Vesta's login (src/lib/auth.ts there): email and password, Google when its
+ * keys are set, 7-day sessions with a 5-minute encrypted cookie cache, 5 tries
+ * a minute. Nobody signs up: each account is made by `scripts/crear-usuario.ts`
+ * (his choice who, since every chat runs on his Anthropic key), and Google only
+ * lets in an email already there. As `adminDb`: the login comes before the user.
  */
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.APP_URL,
-  database: drizzleAdapter(db, {
+  database: drizzleAdapter(adminDb, {
     provider: "pg",
     schema: { user: authUser, session: authSession, account: authAccount, verification: authVerification },
   }),

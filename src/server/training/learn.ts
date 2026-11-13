@@ -164,7 +164,7 @@ export async function learnMove(key: string): Promise<{ ok: boolean; error?: str
     await db
       .insert(kinds)
       .values({ key: moveIcon(key), name: row.name, icon, status: "ready" })
-      .onConflictDoUpdate({ target: kinds.key, set: { icon, status: "ready", error: null, updatedAt: new Date() } });
+      .onConflictDoUpdate({ target: [kinds.userId, kinds.key], set: { icon, status: "ready", error: null, updatedAt: new Date() } });
     await db.update(exerciseMoves).set({ status: "ready", error: null, updatedAt: new Date() }).where(eq(exerciseMoves.key, key));
     return { ok: true };
   } catch (e) {

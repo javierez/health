@@ -111,7 +111,7 @@ export async function interpret(now = new Date()): Promise<{ summary: string; it
     await db
       .insert(assistantMessages)
       .values({ kind: READING, day: localDay(now), ...row })
-      .onConflictDoUpdate({ target: [assistantMessages.kind, assistantMessages.day], set: row });
+      .onConflictDoUpdate({ target: [assistantMessages.userId, assistantMessages.kind, assistantMessages.day], set: row });
     return { ...reading, errors: [] };
   } catch (err) {
     return { summary: "", items: [], errors: [err instanceof Error ? err.message : "Anthropic call failed"] };

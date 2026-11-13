@@ -21,6 +21,7 @@ import { Button } from "~/components/ui/button";
 import { UrgentCard } from "~/components/urgent-card";
 import { WeekCard } from "~/components/week-card";
 import { WhoopView } from "~/components/whoop/whoop-view";
+import { asOwner, isOwner } from "~/db";
 import { env } from "~/env";
 import { localDay } from "~/lib/day";
 import { loadChat } from "~/server/queries/chat";
@@ -116,10 +117,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   // Opening the app is the freshest signal there is: if the last pass is
   // older than ten minutes, pull everything after the page is sent. Only in
   // production: a laptop that refreshes the WHOOP token kills production's.
-  if (env.NODE_ENV === "production") {
-    after(async () => {
-      if (await olderThan("pocket", 10)) await syncEverything();
-    });
+  // His sources: someone else's board pulls nothing of his.
+  if (env.NODE_ENV === "production" && (await isOwner())) {
+    after(() =>
+      asOwner(async () => {
+        if (await olderThan("pocket", 10)) await syncEverything();
+      }),
+    );
   }
 
   const ver = (await searchParams).ver;

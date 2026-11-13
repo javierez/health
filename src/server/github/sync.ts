@@ -319,7 +319,7 @@ async function syncAuthor(login: string, since: string): Promise<GithubSyncRepor
             raw: { search: c, files: files.length },
           })
           .onConflictDoUpdate({
-            target: codeRecords.id,
+            target: [codeRecords.userId, codeRecords.id],
             set: { additions: add, deletions: del, changedFiles, fetchedAt: new Date() },
           });
       } catch (e) {
@@ -371,7 +371,7 @@ async function syncAuthor(login: string, since: string): Promise<GithubSyncRepor
         raw: p,
       })
       .onConflictDoUpdate({
-        target: codeRecords.id,
+        target: [codeRecords.userId, codeRecords.id],
         set: {
           additions: prAdd,
           deletions: prDel,

@@ -142,7 +142,7 @@ export async function syncWhoop(opts: { since?: string } = {}): Promise<WhoopSyn
   // 🚨 WHOOP re-scores an activity minutes after it ends, so a row fetched
   // early holds `PENDING_SCORE` and a null score. Upsert, never insert-ignore.
   for (const r of rows) {
-    await db.insert(whoopRecords).values(r).onConflictDoUpdate({ target: whoopRecords.id, set: r });
+    await db.insert(whoopRecords).values(r).onConflictDoUpdate({ target: [whoopRecords.userId, whoopRecords.id], set: r });
   }
   await dropEdgeStandIns(rows);
 

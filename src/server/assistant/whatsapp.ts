@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import { db } from "~/db";
+import { db, isOwner } from "~/db";
 import { chatMessages } from "~/db/schema";
 import { env } from "~/env";
 import { oneLine } from "~/lib/bubbles";
@@ -30,8 +30,19 @@ export function whatsappConfigured(): boolean {
   return Boolean(env.WHATSAPP_ACCESS_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID && env.WHATSAPP_TO);
 }
 
-async function post(payload: Record<string, unknown>): Promise<Sent> {
+/**
+ * 🚨 `WHATSAPP_TO` is his phone: a notice of anyone else's would land on it,
+ * with their health in it. Until each person has their own number, only his go.
+ */
+async function canSend(): Promise<Sent | null> {
   if (!whatsappConfigured()) return { ok: false, detail: "not-configured" };
+  if (!(await isOwner())) return { ok: false, detail: "not-his: WhatsApp only reaches the owner's phone" };
+  return null;
+}
+
+async function post(payload: Record<string, unknown>): Promise<Sent> {
+  const no = await canSend();
+  if (no) return no;
   let res: Response;
   try {
     res = await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
@@ -122,7 +133,8 @@ export async function markRead(messageId: string): Promise<void> {
  * message pointing at its id. The text is what the chat keeps.
  */
 export async function sendVoice(ogg: Buffer, text: string): Promise<Sent> {
-  if (!whatsappConfigured()) return { ok: false, detail: "not-configured" };
+  const no = await canSend();
+  if (no) return no;
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
   form.append("type", "audio/ogg");

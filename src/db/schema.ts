@@ -5,16 +5,31 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import type { Work } from "~/lib/exercises";
 import type { Food } from "~/lib/food";
 import type { Feel, ToiletSymptom, ToiletTime } from "~/lib/toilet";
+
+/**
+ * 🚨 Whose row it is. Every table but the login's carries one since
+ * 13-nov-2026, and Postgres only shows `pulso_user` the rows of
+ * `app.user_id` (`drizzle/202611131800_multi_usuario.sql`, `~/db`). Never
+ * set by hand: the database fills it from the same setting, so an insert
+ * outside a user fails instead of landing in nobody's (or his) account.
+ */
+const owner = () =>
+  text("user_id")
+    .notNull()
+    .default(sql`nullif(current_setting('app.user_id', true), '')`)
+    .references(() => authUser.id, { onDelete: "cascade" });
 
 /**
  * v0 is deliberately raw-first.
@@ -64,6 +79,7 @@ export type Category = (typeof CATEGORIES)[number];
 export const recordings = pgTable(
   "recordings",
   {
+    userId: owner(),
     /** Pocket's own recording id. Natural key — dedupes the sweep for free. */
     id: text("id").primaryKey(),
     source: text("source").notNull().default("pocket"),
@@ -108,6 +124,7 @@ export const recordings = pgTable(
 export const episodes = pgTable(
   "episodes",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     recordingId: text("recording_id")
       .notNull()
@@ -196,12 +213,13 @@ export const episodes = pgTable(
 
 /** One row, id = 'pocket'. Where the sweep left off. */
 export const syncState = pgTable("sync_state", {
-  source: text("source").primaryKey(),
+  userId: owner(),
+  source: text("source").notNull(),
   lastSweptAt: timestamp("last_swept_at", { withTimezone: true }),
   /** `YYYY-MM-DD` handed to Pocket as `start_date` on the next sweep. */
   cursorDate: text("cursor_date"),
   lastError: text("last_error"),
-});
+}, (t) => [primaryKey({ columns: [t.userId, t.source] })]);
 
 export type Recording = typeof recordings.$inferSelect;
 export type Episode = typeof episodes.$inferSelect;
@@ -226,8 +244,9 @@ export type WhoopKind = (typeof WHOOP_KINDS)[number];
 export const whoopRecords = pgTable(
   "whoop_records",
   {
-    /** `${kind}:${externalId}` — WHOOP ids only collide across kinds. */
-    id: text("id").primaryKey(),
+    userId: owner(),
+    /** `${kind}:${externalId}` — WHOOP ids only collide across kinds (and `profile:me` across people). */
+    id: text("id").notNull(),
     kind: text("kind").$type<WhoopKind>().notNull(),
     /** WHOOP's own id. A uuid for sleep and workout, an integer for cycles. */
     externalId: text("external_id").notNull(),
@@ -252,7 +271,7 @@ export const whoopRecords = pgTable(
     raw: jsonb("raw").notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("whoop_day_idx").on(t.day), index("whoop_kind_idx").on(t.kind)],
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index("whoop_day_idx").on(t.day), index("whoop_kind_idx").on(t.kind)],
 );
 
 /**
@@ -261,11 +280,12 @@ export const whoopRecords = pgTable(
  * sync: `hash` (sha256 of the body) keeps one copy of each.
  */
 export const edgePushes = pgTable("edge_pushes", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
-  hash: text("hash").notNull().unique(),
+  hash: text("hash").notNull(),
   body: jsonb("body").notNull(),
-});
+}, (t) => [unique("edge_pushes_user_hash_key").on(t.userId, t.hash)]);
 
 /**
  * The OAuth grant. One row, `provider = 'whoop'`.
@@ -276,13 +296,14 @@ export const edgePushes = pgTable("edge_pushes", {
  * re-authorised by hand every two hours.
  */
 export const oauthTokens = pgTable("oauth_tokens", {
-  provider: text("provider").primaryKey(),
+  userId: owner(),
+  provider: text("provider").notNull(),
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   scope: text("scope"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [primaryKey({ columns: [t.userId, t.provider] })]);
 
 export type WhoopRecord = typeof whoopRecords.$inferSelect;
 
@@ -305,8 +326,9 @@ export type WhoopRecord = typeof whoopRecords.$inferSelect;
 export const scenes = pgTable(
   "scenes",
   {
+    userId: owner(),
     /** `sport:endurance`, `business:client-call`, `whoop:sleep`. */
-    slug: text("slug").primaryKey(),
+    slug: text("slug").notNull(),
     /** What was asked for, in English. Kept so a bad scene can be re-prompted. */
     brief: text("brief").notNull(),
     /**
@@ -321,7 +343,7 @@ export const scenes = pgTable(
     promptVersion: text("prompt_version").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("scenes_created_idx").on(t.createdAt)],
+  (t) => [primaryKey({ columns: [t.userId, t.slug] }), index("scenes_created_idx").on(t.createdAt)],
 );
 
 export type Scene = typeof scenes.$inferSelect;
@@ -342,8 +364,9 @@ export type CodeKind = (typeof CODE_KINDS)[number];
 export const codeRecords = pgTable(
   "code_records",
   {
+    userId: owner(),
     /** `commit:owner/repo@sha` or `pr:owner/repo#123`. */
-    id: text("id").primaryKey(),
+    id: text("id").notNull(),
     kind: text("kind").$type<CodeKind>().notNull(),
     repo: text("repo").notNull(),
     externalId: text("external_id").notNull(),
@@ -366,7 +389,7 @@ export const codeRecords = pgTable(
     raw: jsonb("raw").notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("code_day_idx").on(t.day), index("code_kind_idx").on(t.kind)],
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index("code_day_idx").on(t.day), index("code_kind_idx").on(t.kind)],
 );
 
 export type CodeRecord = typeof codeRecords.$inferSelect;
@@ -433,6 +456,7 @@ export interface FactData {
 export const facts = pgTable(
   "facts",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     /** One of the two: the recording it was heard in, or the chat message it came in. */
     recordingId: text("recording_id").references(() => recordings.id, { onDelete: "cascade" }),
@@ -477,6 +501,7 @@ export const MEDICAL_KINDS = [
 export type MedicalKind = (typeof MEDICAL_KINDS)[number];
 
 export const medical = pgTable("medical", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   kind: text("kind").$type<MedicalKind>().notNull(),
   title: text("title").notNull(),
@@ -499,6 +524,7 @@ export type MedicalEntry = typeof medical.$inferSelect;
 export const assistantMessages = pgTable(
   "assistant_messages",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     /** bedtime · morning · commitments · reading (the interpreter's, weekly; never sent) */
     kind: text("kind").notNull(),
@@ -514,7 +540,7 @@ export const assistantMessages = pgTable(
     nightMinutes: integer("night_minutes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("assistant_messages_kind_day_idx").on(t.kind, t.day)],
+  (t) => [uniqueIndex("assistant_messages_kind_day_idx").on(t.userId, t.kind, t.day)],
 );
 
 export interface Recommendation {
@@ -532,6 +558,7 @@ export interface Recommendation {
 export const chatMessages = pgTable(
   "chat_messages",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     waId: text("wa_id").unique(),
     /** in · out */
@@ -559,6 +586,7 @@ export type Channel = (typeof CHANNELS)[number];
 export const reminders = pgTable(
   "reminders",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     at: timestamp("at", { withTimezone: true }).notNull(),
     body: text("body").notNull(),
@@ -584,6 +612,7 @@ export type Reminder = typeof reminders.$inferSelect;
  * like Instinct»). Forgotten = `active` false.
  */
 export const lessons = pgTable("lessons", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   body: text("body").notNull(),
   chatMessageId: integer("chat_message_id").references(() => chatMessages.id, { onDelete: "set null" }),
@@ -611,6 +640,7 @@ export const PROOFS = ["auto", "check", "photo"] as const;
 export type Proof = (typeof PROOFS)[number];
 
 export const commitments = pgTable("commitments", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   /** What counts automatically. Empty for a habit ("la pastilla cada día"). */
@@ -630,6 +660,7 @@ export const commitments = pgTable("commitments", {
 export const checks = pgTable(
   "checks",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     day: text("day").notNull(),
     /** `bed` · `procedure` · `item-<hash>` · `commitment-<id>` */
@@ -640,7 +671,7 @@ export const checks = pgTable(
     source: text("source").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("checks_day_key_idx").on(t.day, t.key), index("checks_commitment_idx").on(t.commitmentId)],
+  (t) => [uniqueIndex("checks_day_key_idx").on(t.userId, t.day, t.key), index("checks_commitment_idx").on(t.commitmentId)],
 );
 
 /**
@@ -652,8 +683,9 @@ export const checks = pgTable(
 export const waMessages = pgTable(
   "wa_messages",
   {
-    /** WhatsApp's own message id: the same if the instance is ever recreated. */
-    id: text("id").primaryKey(),
+    userId: owner(),
+    /** WhatsApp's own message id: the same if the instance is ever recreated (and on both ends of a chat). */
+    id: text("id").notNull(),
     chat: text("chat").notNull(),
     /** The name the other person gave themselves, on what they sent. */
     name: text("name"),
@@ -668,7 +700,7 @@ export const waMessages = pgTable(
     raw: jsonb("raw").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("wa_messages_day_idx").on(t.day), index("wa_messages_chat_at_idx").on(t.chat, t.at)],
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index("wa_messages_day_idx").on(t.day), index("wa_messages_chat_at_idx").on(t.chat, t.at)],
 );
 
 export type WaMessage = typeof waMessages.$inferSelect;
@@ -695,7 +727,8 @@ export interface WaChat {
 
 /** One read per finished day of WhatsApp. */
 export const waDays = pgTable("wa_days", {
-  day: text("day").primaryKey(),
+  userId: owner(),
+  day: text("day").notNull(),
   /** One line: the day on WhatsApp and how it may have left him. */
   summary: text("summary").notNull(),
   chats: jsonb("chats").$type<WaChat[]>().notNull(),
@@ -705,13 +738,13 @@ export const waDays = pgTable("wa_days", {
   model: text("model").notNull(),
   promptVersion: text("prompt_version").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [primaryKey({ columns: [t.userId, t.day] })]);
 
 export type WaDay = typeof waDays.$inferSelect;
 
 /**
- * better-auth, set up like Vesta's: one user (him), email and password, Google
- * when its keys are there. The column names are better-auth's own.
+ * better-auth, set up like Vesta's: email and password, Google when its keys
+ * are there. No `owner()` here: these are read before anyone is known (`adminDb`). The column names are better-auth's own.
  */
 export const authUser = pgTable("auth_user", {
   id: text("id").primaryKey(),
@@ -787,7 +820,8 @@ export const authResetCodes = pgTable("auth_reset_codes", {
  * renders (`~/server/kinds`). A name the baked renders cover never lands here.
  */
 export const kinds = pgTable("kinds", {
-  key: text("key").primaryKey(),
+  userId: owner(),
+  key: text("key").notNull(),
   name: text("name").notNull(),
   /** The icon, base64 webp with transparency. Null until drawn. */
   icon: text("icon"),
@@ -800,7 +834,7 @@ export const kinds = pgTable("kinds", {
   attempts: integer("attempts").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [primaryKey({ columns: [t.userId, t.key] })]);
 
 export type Kind = typeof kinds.$inferSelect;
 
@@ -854,6 +888,7 @@ export interface SupplementEvidence {
  * `~/lib/skin`. Born as `skin_products`.
  */
 export const products = pgTable("products", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   /** As on the label, short: «Fusion Water SPF 50». */
   name: text("name").notNull(),
@@ -884,6 +919,7 @@ export type Product = typeof products.$inferSelect;
 export const productUses = pgTable(
   "product_uses",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     productId: integer("product_id")
       .notNull()
@@ -900,6 +936,7 @@ export const productUses = pgTable(
  * the hand-written ones. It never decides what is true; the numbers do.
  */
 export const hypotheses = pgTable("hypotheses", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   why: text("why").notNull(),
@@ -916,6 +953,7 @@ export const hypotheses = pgTable("hypotheses", {
  * the data alone cannot. Its days are a row of «Hoy», ticked as `exp-<id>`.
  */
 export const experiments = pgTable("experiments", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   /** The finding it tests, `Finding.key`, and on which outcome. */
   findingKey: text("finding_key").notNull(),
@@ -948,7 +986,8 @@ export interface MoveInfo {
  * The drawing lives in `kinds` as `mov-<key>`: both poses, side by side.
  */
 export const exerciseMoves = pgTable("exercise_moves", {
-  key: text("key").primaryKey(),
+  userId: owner(),
+  key: text("key").notNull(),
   name: text("name").notNull(),
   /** A sport, counted by time, rather than an exercise counted by sets. */
   byTime: boolean("by_time").notNull().default(false),
@@ -959,7 +998,7 @@ export const exerciseMoves = pgTable("exercise_moves", {
   attempts: integer("attempts").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [primaryKey({ columns: [t.userId, t.key] })]);
 
 export type ExerciseMove = typeof exerciseMoves.$inferSelect;
 
@@ -983,6 +1022,7 @@ export interface RoutineExercise {
  * mañana», which lives in `products.moment`.
  */
 export const trainingRoutines = pgTable("training_routines", {
+  userId: owner(),
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   exercises: jsonb("exercises").$type<RoutineExercise[]>().notNull(),
@@ -1002,6 +1042,7 @@ export type TrainingRoutine = typeof trainingRoutines.$inferSelect;
 export const photos = pgTable(
   "photos",
   {
+    userId: owner(),
     id: serial("id").primaryKey(),
     chatMessageId: integer("chat_message_id")
       .notNull()

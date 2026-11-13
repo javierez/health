@@ -1,17 +1,20 @@
 /**
- * The one user of the app, or a new password for him. Nobody signs up from
- * the login page (better-auth `disableSignUp`), so this is the only door.
+ * Someone new in the app, or a new password for someone already in. Nobody
+ * signs up from the login page (better-auth `disableSignUp`): each person's
+ * chat runs on his Anthropic key, so this is the only door, and it is his.
+ * Each person sees only their own rows (`~/db`); the first account is his.
  * Email and password come from the environment, never from the command line,
- * so they don't land in the shell history.
+ * so they don't land in the shell history. A new person needs AUTH_NAME too:
+ * the app calls them by it.
  *
- *   AUTH_EMAIL=… AUTH_PASSWORD=… set -a && source .env.local && set +a && pnpm tsx scripts/crear-usuario.ts           # dry-run
+ *   AUTH_EMAIL=… AUTH_PASSWORD=… AUTH_NAME=… set -a && source .env.local && set +a && pnpm tsx scripts/crear-usuario.ts   # dry-run
  *   … pnpm tsx scripts/crear-usuario.ts --write
  */
 import { auth } from "~/lib/auth";
 
 const email = process.env.AUTH_EMAIL?.trim().toLowerCase();
 const password = process.env.AUTH_PASSWORD;
-const name = process.env.AUTH_NAME ?? "Javier";
+const name = process.env.AUTH_NAME?.trim();
 if (!email || !password || password.length < 8) {
   console.error("Faltan AUTH_EMAIL y AUTH_PASSWORD (8 caracteres o más).");
   process.exit(1);
@@ -30,7 +33,11 @@ if (found) {
     await ctx.internalAdapter.linkAccount({ userId: found.user.id, providerId: "credential", accountId: found.user.id, password: hash });
   }
 } else {
-  console.log(`${email} no existe: se crea, con contraseña.`);
+  if (!name) {
+    console.error(`${email} no existe: falta AUTH_NAME, el nombre con el que la app le habla.`);
+    process.exit(1);
+  }
+  console.log(`${email} no existe: se crea como «${name}», con contraseña, y empieza vacío.`);
   if (write) {
     const user = await ctx.internalAdapter.createUser({ email, name, emailVerified: true });
     await ctx.internalAdapter.linkAccount({ userId: user.id, providerId: "credential", accountId: user.id, password: hash });

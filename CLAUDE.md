@@ -1,7 +1,8 @@
 # CLAUDE.md
 
-Health: a single-user app that ingests my Pocket recordings, classifies them and
-lets me read them back. Not Vesta — separate repo, separate DB, separate Vercel
+Health: an app that ingests my Pocket recordings, classifies them and lets me
+read them back. Since 13-nov-2026 others have their own login and see only
+their own rows; the sources (Pocket, WHOOP, WhatsApp, GitHub) are still mine. Not Vesta — separate repo, separate DB, separate Vercel
 project. **Never import from Vesta and never point `DATABASE_URL` at it.**
 
 ## Non-negotiable
@@ -11,7 +12,15 @@ project. **Never import from Vesta and never point `DATABASE_URL` at it.**
 2. **Dry-run anything that writes.** `scripts/sync.ts --dry` exists for that.
 3. **Raw first.** `recordings.raw` keeps the untouched payload. Do not add
    structured columns on a guess — see `docs/roadmap.md`.
-4. **The unit is the EPISODE, not the recording.** One recording yields N
+4. **Each person sees only their rows, and Postgres keeps it so.** Every
+   table but `auth_*` has `user_id: owner()`, RLS on and the `own_rows` rule
+   for `pulso_user` (`drizzle/202611131800_multi_usuario.sql`). `db` runs
+   every query as that role for the signed-in user; a webhook, the tick or a
+   job with nobody signed in wraps its work in `asOwner` / `asUser`, or it
+   reads and writes nothing. `adminDb` sees everyone: only for the login.
+   A new table copies all four, and every unique key starts with `user_id`;
+   `src/db/owner.test.ts` and the build (`scripts/migrate.ts`) stop if not.
+5. **The unit is the EPISODE, not the recording.** One recording yields N
    episodes with real start/end offsets. Every rollup sums episode minutes and
    never counts recordings. Anything that reintroduces one-label-per-recording
    silently throws away most of the day.

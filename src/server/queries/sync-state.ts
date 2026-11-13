@@ -15,5 +15,5 @@ export async function writeSyncState(
   await db
     .insert(syncState)
     .values({ source, ...patch })
-    .onConflictDoUpdate({ target: syncState.source, set: patch });
+    .onConflictDoUpdate({ target: [syncState.userId, syncState.source], set: patch });
 }
