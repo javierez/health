@@ -18,8 +18,8 @@ function check(name: string, ok: boolean) {
   else failures.push(name);
 }
 
-const tables = Object.values(schema).filter((t): t is PgTable => is(t, PgTable));
-const perPerson = tables.map(getTableConfig).filter((t) => !t.name.startsWith("auth_"));
+const tables = Object.values(schema as Record<string, unknown>).filter((t): t is PgTable => is(t, PgTable));
+const perPerson = tables.map((t) => getTableConfig(t)).filter((t) => !t.name.startsWith("auth_"));
 const names = (cols: readonly unknown[]) => cols.map((c) => (c as { name?: string }).name);
 
 check("the schema has its tables", perPerson.length >= 26);
