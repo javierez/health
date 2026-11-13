@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrenos · cómo funcionaría en el gimnasio</title>
+<!-- Mockup, 22-oct-2026. Classes copied from src/components/training/*.tsx; history from production (facts + WHOOP). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ["Inter", "system-ui", "sans-serif"] },
+  keyframes: {
+    rep: { "0%, 35%": { opacity: "0" }, "50%, 85%": { opacity: "1" }, "100%": { opacity: "0" } },
+    "row-in": { from: { opacity: "0", transform: "translateY(8px)" }, to: { opacity: "1", transform: "none" } },
+    flash: { "0%, 60%": { backgroundColor: "#fef3c7" }, "100%": { backgroundColor: "#f3f4f6" } },
+  },
+  animation: { rep: "rep 2.4s ease-in-out infinite", rise: "row-in 0.5s ease-out both", flash: "flash 1.6s ease-out both" },
+} } };
+</script>
+<style>
+  .mv { position:relative; display:inline-block; flex-shrink:0 }
+  .mv span { position:absolute; inset:0; background-size:200% 100%; background-repeat:no-repeat; clip-path:inset(0 2%) }
+  .mv span:first-child { background-position:left } .mv span + span { background-position:right; opacity:0 }
+  .inv { border:1px dashed #9ca3af; color:#6b7280; border-radius:999px; padding:0 7px; font-size:11px; white-space:nowrap }
+  details > summary { list-style:none } details > summary::-webkit-details-marker { display:none }
+  details[open] .chev { transform:rotate(90deg) }
+</style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900 antialiased">
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+
+  <header class="max-w-3xl animate-rise">
+    <p class="text-xs font-medium tracking-wide text-amber-600 uppercase">Entrenos · propuesta · 22 oct</p>
+    <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Hablas por WhatsApp mientras entrenas. La sesión se va llenando sola.</h1>
+    <p class="mt-2 text-sm text-gray-500">Pulsa «Siguiente» y mira los dos móviles a la vez. La rutina es la tuya; lo que dices y lo que contesta es <span class="inv">inventado</span> para enseñarlo.</p>
+  </header>
+
+  <!-- 1 · The session, live -->
+  <section class="mt-8 grid items-start gap-6 lg:grid-cols-2">
+    <div class="animate-rise" style="animation-delay:.08s">
+      <div class="mx-auto w-full max-w-[390px] overflow-hidden rounded-[2.2rem] border-[10px] border-gray-900 bg-[#efeae2] shadow-md">
+        <div class="flex items-center gap-2 bg-[#075e54] px-4 py-3 text-white">
+          <span class="grid size-8 place-items-center rounded-full bg-white/20 text-sm font-semibold">S</span>
+          <div><p class="text-sm font-semibold leading-tight">Salud</p><p class="text-[11px] text-white/70">en línea</p></div>
+        </div>
+        <div id="chat" class="flex h-[520px] flex-col gap-1.5 overflow-y-auto px-3 py-3 text-[14px] leading-snug"></div>
+      </div>
+      <div class="mt-4 flex items-center justify-center gap-2">
+        <button id="back" class="inline-flex h-9 items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 hover:bg-gray-100">Atrás</button>
+        <button id="next" class="inline-flex h-9 items-center gap-1.5 rounded-2xl bg-gray-900 px-4 text-sm font-medium text-white hover:bg-gray-800">Siguiente</button>
+        <span id="step" class="ml-1 text-xs text-gray-500 tabular-nums"></span>
+      </div>
+    </div>
+
+    <div class="animate-rise" style="animation-delay:.16s">
+      <div class="mx-auto w-full max-w-[390px] rounded-[2.2rem] border-[10px] border-gray-900 bg-gray-50 p-3 shadow-md">
+        <div class="h-[556px] space-y-3 overflow-y-auto">
+          <div class="flex items-baseline gap-3 px-1 pt-1">
+            <h2 class="text-2xl font-bold tracking-tight">Entrenos</h2>
+            <span id="days" class="text-sm text-gray-500">3 de 7 días</span>
+          </div>
+          <div id="live"></div>
+          <div class="rounded-2xl bg-white p-4 shadow-md">
+            <h3 class="px-2 text-sm font-medium text-gray-900">Sesiones</h3>
+            <div id="mini" class="mt-1"></div>
+          </div>
+        </div>
+      </div>
+      <p class="mt-4 text-center text-xs text-gray-500">«Hoy» solo está mientras entrenas. Al cerrar, baja a Sesiones.</p>
+    </div>
+  </section>
+
+  <!-- 2 · Sesiones, tidy -->
+  <section class="mt-14 grid items-start gap-6 lg:grid-cols-5">
+    <div class="lg:col-span-2 animate-rise">
+      <h2 class="text-xl font-bold tracking-tight">Sesiones, más ordenadas</h2>
+      <ul class="mt-3 space-y-2 text-sm text-gray-700">
+        <li><b class="text-gray-900">Por semanas</b>, con cuántos días y cuánto rato.</li>
+        <li><b class="text-gray-900">Una línea por sesión</b>: el nombre, los dibujos de lo que hiciste y el tiempo de WHOOP.</li>
+        <li><b class="text-gray-900">La abres y ves cada serie</b> en su pastilla: «80 kg × 8». Lo que dijiste, debajo.</li>
+        <li><b class="text-gray-900">Lo de WHOOP sin ejercicios</b> sale igual, con sus minutos y su esfuerzo. Si se lo cuentas, se llena.</li>
+      </ul>
+      <p class="mt-4 text-xs text-gray-500">Datos de producción: tu entreno de ayer y los de WHOOP de octubre. WHOOP llega hasta el 18.</p>
+    </div>
+    <div class="lg:col-span-3 animate-rise" style="animation-delay:.08s">
+      <div class="rounded-2xl bg-white p-4 shadow-md">
+        <h3 class="px-2 text-sm font-medium text-gray-900">Sesiones</h3>
+        <div id="history" class="mt-1"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · What it needs -->
+  <section class="mt-14 max-w-3xl animate-rise">
+    <h2 class="text-xl font-bold tracking-tight">Para que funcione hoy</h2>
+    <ol class="mt-3 space-y-2 text-sm text-gray-700">
+      <li><b class="text-gray-900">1. El deploy.</b> Con él, los vídeos se leen y las rutinas se guardan. El comando lo tienes copiado: <code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs">! zsh …/whoop-a-produccion.sh</code></li>
+      <li><b class="text-gray-900">2. Esta pantalla.</b> Hoy apunta igual, pero se ve como la de ahora (una lista larga). La nueva la hago cuando digas.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+const MOV = {
+  "Sentadilla isométrica en pared": "sentadilla-isometrica-en-pared",
+  "Sentadilla isométrica en pared a una pierna": "sentadilla-isometrica-en-pared-a-una-pie",
+  "Zancada estática": "zancada-estatica",
+  "Puente de glúteo a una pierna con banda": "puente-de-gluteo-a-una-pierna-con-banda",
+  "Oso a pica": "oso-a-pica",
+  "Sentadilla a una pierna con fitball": "sentadilla-a-una-pierna-con-fitball",
+  "Zancada estática con mancuernas": "zancada-estatica-con-mancuernas",
+};
+const ROUTINE = Object.keys(MOV);
+const mv = (name, size) => MOV[name] ? `<span class="mv" style="width:${size * 3 / 4}px;height:${size}px"><span style="background-image:url(shots/mov/mov-${MOV[name]}.webp)"></span><span class="animate-rep" style="background-image:url(shots/mov/mov-${MOV[name]}.webp)"></span></span>` : `<span style="width:${size * 3 / 4}px" class="shrink-0"></span>`;
+const pill = (t, flash) => `<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 tabular-nums ${flash ? "animate-flash" : ""}">${t}</span>`;
+
+// The gym session, message by message. Each step: what he sends, what it answers, and the session after it.
+const STEPS = [
+  { me: "🎥 Vídeo · 0:48", meText: "primera", it: "Sentadilla isométrica en pared, 45 s. Rutina de pierna: 1 de 7.",
+    s: [["Sentadilla isométrica en pared", ["45 s"]]] },
+  { me: "🎤 Audio · 0:06", meText: "«Otra de 45, me temblaban las piernas al final»", it: "Segunda serie apuntada: 2 × 45 s.",
+    s: [["Sentadilla isométrica en pared", ["45 s", "45 s"], "me temblaban las piernas al final"]], flash: [0, 1] },
+  { meText: "a una pierna, 3 de 30 segundos cada pierna", it: "Sentadilla isométrica en pared a una pierna, 3 × 30 s por pierna. 2 de 7.",
+    s: [["Sentadilla isométrica en pared", ["45 s", "45 s"], "me temblaban las piernas al final"], ["Sentadilla isométrica en pared a una pierna", ["30 s", "30 s", "30 s"]]] },
+  { meText: "zancada 3x10 por pierna", it: "Zancada estática, 3 × 10 por pierna. 3 de 7.",
+    s: [["Sentadilla isométrica en pared", ["45 s", "45 s"], "me temblaban las piernas al final"], ["Sentadilla isométrica en pared a una pierna", ["30 s", "30 s", "30 s"]], ["Zancada estática", ["× 10", "× 10", "× 10"]]] },
+  { meText: "perdona, la última fueron 8", it: "Cambiado: 10, 10 y 8.",
+    s: [["Sentadilla isométrica en pared", ["45 s", "45 s"], "me temblaban las piernas al final"], ["Sentadilla isométrica en pared a una pierna", ["30 s", "30 s", "30 s"]], ["Zancada estática", ["× 10", "× 10", "× 8"]]], flash: [2, 2] },
+  { me: "🎥 Vídeo · 0:35", it: "Puente de glúteo a una pierna con banda, 12 por pierna. 4 de 7.",
+    s: [["Sentadilla isométrica en pared", ["45 s", "45 s"], "me temblaban las piernas al final"], ["Sentadilla isométrica en pared a una pierna", ["30 s", "30 s", "30 s"]], ["Zancada estática", ["× 10", "× 10", "× 8"]], ["Puente de glúteo a una pierna con banda", ["× 12"]]] },
+  { meText: "ya está, el resto mañana, voy reventado", it: "Sesión cerrada: 4 de 7 de la rutina de pierna, 41 min. Mañana toca espalda y bíceps.",
+    done: true, s: [["Sentadilla isométrica en pared", ["45 s", "45 s"], "me temblaban las piernas al final"], ["Sentadilla isométrica en pared a una pierna", ["30 s", "30 s", "30 s"]], ["Zancada estática", ["× 10", "× 10", "× 8"]], ["Puente de glúteo a una pierna con banda", ["× 12"]]] },
+];
+
+const exRows = (list, flash) => list.map(([name, sets, note], i) => `
+  <li class="flex gap-3 px-2 py-2">
+    ${mv(name, 40)}
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-medium text-gray-900">${name}</p>
+      <div class="mt-1 flex flex-wrap gap-1">${sets.map((t, j) => pill(t, flash && flash[0] === i && flash[1] === j)).join("")}</div>
+      ${note ? `<p class="mt-1 text-xs text-gray-500">«${note}»</p>` : ""}
+    </div>
+  </li>`).join("");
+
+const dots = (n) => `<div class="mt-2 flex gap-1 px-2">${ROUTINE.map((_, i) => `<span class="h-1.5 flex-1 rounded-full ${i < n ? "bg-gray-900" : "bg-gray-200"}"></span>`).join("")}</div>`;
+
+function liveCard(st) {
+  if (st.done) return "";
+  const next = ROUTINE[st.s.length];
+  return `<div class="rounded-2xl bg-white p-4 shadow-md animate-rise">
+    <p class="flex items-baseline gap-2 px-2"><span class="relative mr-0.5 inline-block size-2 rounded-full bg-amber-500"><span class="absolute inset-0 animate-ping rounded-full bg-amber-400"></span></span>
+      <span class="text-sm font-medium text-gray-900">Hoy · Rutina de pierna</span><span class="ml-auto text-xs text-gray-500 tabular-nums">${st.s.length} de 7</span></p>
+    ${dots(st.s.length)}
+    <ul class="mt-1 divide-y divide-gray-100">${exRows(st.s, st.flash)}</ul>
+    ${next ? `<div class="mt-1 flex items-center gap-3 rounded-xl bg-gray-50 px-2 py-2">${mv(next, 32)}<p class="text-sm"><span class="text-gray-500">Ahora</span> <span class="font-medium text-gray-900">${next}</span></p></div>` : ""}
+  </div>`;
+}
+
+// Real history (production): yesterday's session, then WHOOP's.
+const HISTORY = [
+  { week: "Esta semana", meta: "1 día", rows: [
+    { d: "21", w: "mié", title: "Rutina de pierna", sub: "7 de 7", ex: ROUTINE.map((n) => [n, n === "Zancada estática" || n === "Sentadilla a una pierna con fitball" ? ["× 4"] : []]) },
+  ] },
+  { week: "13 a 19 oct", meta: "4 días · 1 h 13 min", rows: [
+    { d: "18", w: "dom", title: "Andar", sub: "15 min · esfuerzo 4,2" },
+    { d: "17", w: "sáb", title: "Andar", sub: "15 min · esfuerzo 2,7" },
+    { d: "15", w: "jue", title: "Pierna", sub: "lo dijiste, sin ejercicios" },
+    { d: "14", w: "mié", title: "Pesas", sub: "43 min · esfuerzo 11,3" },
+  ] },
+  { week: "6 a 12 oct", meta: "6 días · 4 h 26 min", rows: [
+    { d: "12", w: "lun", title: "Actividad", sub: "69 min · esfuerzo 12,6" },
+    { d: "11", w: "dom", title: "Actividad", sub: "36 min · esfuerzo 7,4" },
+    { d: "10", w: "sáb", title: "Pesas", sub: "42 min · esfuerzo 9,5" },
+    { d: "7", w: "mié", title: "Pesas", sub: "54 min · esfuerzo 13,1" },
+    { d: "6", w: "mar", title: "Pesas", sub: "44 min · esfuerzo 13,7" },
+    { d: "5", w: "lun", title: "Pesas", sub: "21 min · esfuerzo 5,8" },
+  ] },
+];
+
+const dateBox = (d, w, live) => `<span class="flex w-10 shrink-0 flex-col items-center rounded-xl py-1 ${live ? "bg-amber-50" : "bg-gray-50"}"><span class="text-base font-semibold leading-none tabular-nums text-gray-900">${d}</span><span class="mt-0.5 text-[11px] text-gray-500">${w}</span></span>`;
+
+function sessionRow(r, open) {
+  const strip = r.ex ? `<span class="mt-1 flex items-center gap-0.5">${r.ex.slice(0, 5).map(([n]) => mv(n, 28)).join("")}${r.ex.length > 5 ? `<span class="ml-1 text-xs text-gray-400">+${r.ex.length - 5}</span>` : ""}</span>` : "";
+  const head = `<span class="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-gray-50">
+      ${dateBox(r.d, r.w, r.live)}
+      <span class="min-w-0 flex-1"><span class="block text-sm font-medium text-gray-900">${r.title}</span><span class="block text-xs text-gray-500 tabular-nums">${r.sub}</span>${strip}</span>
+      ${r.ex ? `<svg class="chev size-4 shrink-0 text-gray-300 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>` : ""}
+    </span>`;
+  if (!r.ex) return `<div>${head}</div>`;
+  return `<details ${open ? "open" : ""}><summary class="cursor-pointer">${head}</summary><ul class="mb-2 ml-12 divide-y divide-gray-100">${exRows(r.ex)}</ul></details>`;
+}
+
+const weekBlock = (wk, openFirst) => `<div class="mt-2 first:mt-0">
+  <p class="flex items-baseline px-2 pt-2 pb-1 text-xs font-medium text-gray-500"><span>${wk.week}</span><span class="ml-auto tabular-nums">${wk.meta}</span></p>
+  ${wk.rows.map((r, i) => sessionRow(r, openFirst && i === 0)).join("")}
+</div>`;
+
+document.getElementById("history").innerHTML = HISTORY.map((wk, i) => weekBlock(wk, i === 0)).join("");
+
+let at = 0;
+function render() {
+  const st = STEPS[at];
+  document.getElementById("chat").innerHTML = STEPS.slice(0, at + 1).map((x, i) => `
+    <div class="ml-auto max-w-[80%] rounded-lg rounded-tr-none bg-[#d9fdd3] px-2.5 py-1.5 shadow-sm ${i === at ? "animate-rise" : ""}">
+      ${x.me ? `<p class="text-[13px] text-gray-600">${x.me}</p>` : ""}${x.meText ? `<p>${x.meText}</p>` : ""}
+    </div>
+    <div class="max-w-[80%] rounded-lg rounded-tl-none bg-white px-2.5 py-1.5 shadow-sm ${i === at ? "animate-rise" : ""}" style="${i === at ? "animation-delay:.5s" : ""}">${x.it}</div>`).join("");
+  const c = document.getElementById("chat"); c.scrollTop = c.scrollHeight;
+  document.getElementById("live").innerHTML = liveCard(st);
+  const today = st.done ? [{ week: "Esta semana", meta: "2 días · 41 min", rows: [{ d: "22", w: "jue", title: "Rutina de pierna", sub: "4 de 7 · 41 min", ex: st.s }, HISTORY[0].rows[0]] }]
+                        : [{ week: "Esta semana", meta: "1 día", rows: [HISTORY[0].rows[0]] }];
+  document.getElementById("mini").innerHTML = today.map((wk) => weekBlock(wk, st.done)).join("");
+  document.getElementById("days").textContent = st.done ? "4 de 7 días" : "3 de 7 días";
+  document.getElementById("step").textContent = `${at + 1} de ${STEPS.length}`;
+  document.getElementById("back").disabled = at === 0;
+  document.getElementById("next").textContent = at === STEPS.length - 1 ? "Otra vez" : "Siguiente";
+}
+document.getElementById("next").onclick = () => { at = at === STEPS.length - 1 ? 0 : at + 1; render(); };
+document.getElementById("back").onclick = () => { if (at > 0) { at--; render(); } };
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salud · Product book</title>
+<style>
+  :root { --ink:#0b0f19; --soft:#374151; --mute:#6b7280; --line:#e5e7eb; --bg:#fafaf9; --card:#fff; --amber:#f59e0b; --amberbg:#fffbeb; --amberline:#fde68a; --deep:#92400e }
+  * { box-sizing:border-box }
+  html { scroll-behavior:smooth }
+  body { margin:0; font:16px/1.55 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased }
+  img, video { display:block; max-width:100% }
+
+  /* progress + chapter dots */
+  #bar { position:fixed; top:0; left:0; height:3px; width:0; background:var(--amber); z-index:50 }
+  #dots { position:fixed; right:22px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:40 }
+  #dots a { width:8px; height:8px; border-radius:99px; background:#d1d5db; transition:all .3s }
+  #dots a.on { background:var(--ink); height:22px }
+  #dots a:hover::after { content:attr(data-t); position:absolute; right:20px; font-size:12px; background:var(--ink); color:#fff; padding:2px 9px; border-radius:99px; white-space:nowrap; transform:translateY(-4px) }
+
+  /* chapters */
+  section { min-height:100vh; padding:110px 7vw 90px; display:flex; flex-direction:column; justify-content:center; position:relative }
+  section + section { border-top:1px solid var(--line) }
+  .k { font:600 12px/1 ui-monospace,Menlo,monospace; letter-spacing:.14em; color:var(--mute); text-transform:uppercase; margin-bottom:18px }
+  .k b { color:var(--amber) }
+  h1 { font-size:clamp(64px,10vw,148px); letter-spacing:-.05em; line-height:.9; margin:0 }
+  h2 { font-size:clamp(38px,5vw,68px); letter-spacing:-.04em; line-height:1; margin:0 0 18px; max-width:15ch }
+  .lead { font-size:clamp(18px,1.6vw,22px); color:var(--soft); max-width:38ch; margin:0 0 26px }
+  .two { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); gap:6vw; align-items:center }
+  .two.flip { grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr) }
+  .pts { list-style:none; padding:0; margin:0; display:grid; gap:12px; max-width:44ch }
+  .pts li { display:grid; grid-template-columns:34px 1fr; gap:12px; align-items:start; font-size:15.5px; color:var(--soft) }
+  .pts li img { width:34px; height:34px; object-fit:contain }
+  .pts li b { color:var(--ink); font-weight:600 }
+  .tag { display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:99px; background:#f3f4f6; color:var(--mute); vertical-align:3px; margin-left:6px; font-weight:500; letter-spacing:0 }
+  .tag.a { background:var(--amberbg); color:var(--deep); border:1px solid var(--amberline) }
+  .tag.m { background:#fff; border:1px dashed #9ca3af; color:var(--soft) }
+  .cap { font-size:12.5px; color:var(--mute); margin-top:10px }
+
+  /* reveal: 8 px, .5 s, .08 s per step */
+  .r { opacity:0; transform:translateY(8px); transition:opacity .5s ease, transform .5s ease; transition-delay:calc(var(--i,0) * .08s) }
+  .in .r, .r.in { opacity:1; transform:none }
+
+  /* devices */
+  .laptop { position:relative; padding:14px 14px 0; background:#111827; border-radius:18px 18px 0 0; box-shadow:0 40px 80px -30px rgba(17,24,39,.45) }
+  .laptop video, .laptop img { border-radius:6px 6px 0 0; width:100%; background:#fff }
+  .laptop::after { content:""; position:absolute; left:-6%; right:-6%; bottom:-16px; height:16px; background:linear-gradient(#d1d5db,#9ca3af); border-radius:0 0 14px 14px }
+  .phone { position:relative; width:300px; aspect-ratio:390/844; border-radius:46px; background:#0b0f19; padding:11px; box-shadow:0 40px 80px -30px rgba(17,24,39,.5); flex:none }
+  .phone > .scr { width:100%; height:100%; border-radius:36px; overflow:hidden; background:#fff; position:relative }
+  .phone > .scr > video, .phone > .scr > img { width:100%; height:100%; object-fit:cover; object-position:top }
+  .phone::before { content:""; position:absolute; top:20px; left:50%; width:84px; height:24px; border-radius:99px; background:#0b0f19; transform:translateX(-50%); z-index:2 }
+  .phone.sm { width:250px }
+  .scroller { animation:tall 26s ease-in-out infinite alternate; height:auto !important; object-fit:initial !important }
+  @keyframes tall { 0%,8% { transform:translateY(0) } 92%,100% { transform:translateY(calc(-100% + 640px)) } }
+  .shot { border-radius:18px; border:1px solid var(--line); background:#fff; box-shadow:0 30px 60px -35px rgba(17,24,39,.35); overflow:hidden }
+  .stack { position:relative; height:560px }
+  .stack > * { position:absolute; width:62% }
+  .float { animation:float 6s ease-in-out infinite alternate }
+  @keyframes float { from { transform:translateY(-6px) } to { transform:translateY(6px) } }
+
+  /* cover */
+  #cover { background:radial-gradient(1200px 600px at 75% 30%, #fff7e6 0%, var(--bg) 60%); overflow:hidden }
+  #cover .logo { width:120px; margin-bottom:28px }
+  #cover .sub { font-size:clamp(20px,2.2vw,30px); color:var(--soft); max-width:26ch; margin:24px 0 0; letter-spacing:-.01em }
+  #cover .meta { margin-top:44px; font-size:13px; color:var(--mute) }
+  .orbit { position:absolute; right:4vw; top:50%; width:min(46vw,640px); aspect-ratio:1; transform:translateY(-50%) }
+  .orbit img { position:absolute; width:22%; animation:float 5s ease-in-out infinite alternate; filter:drop-shadow(0 18px 18px rgba(17,24,39,.12)) }
+  .orbit .mv-big { position:absolute; left:22%; top:20%; width:56% }
+
+  /* the idea */
+  .flow { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:20px }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:24px; padding:28px; position:relative }
+  .step img { width:86px; height:86px; object-fit:contain; margin-bottom:14px }
+  .step h3 { font-size:24px; letter-spacing:-.02em; margin:0 0 6px }
+  .step p { margin:0; color:var(--soft); font-size:15px }
+  .step em { position:absolute; top:22px; right:24px; font:600 12px ui-monospace,Menlo,monospace; color:#d1d5db; font-style:normal }
+
+  /* the 3D mannequins: two poses of one drawing, crossfading (as in the app) */
+  .mvi { position:relative; aspect-ratio:3/4 }
+  .mvi span { position:absolute; inset:0; background:var(--src) left/200% 100% no-repeat; clip-path:inset(0 2%) }
+  .mvi span + span { background-position:right; opacity:0; animation:rep 2.4s ease-in-out infinite }
+  @keyframes rep { 0%,35% { opacity:0 } 50%,85% { opacity:1 } 100% { opacity:0 } }
+  .gal { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:18px }
+  .mv { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:16px 18px 18px; position:relative; transition:transform .3s, box-shadow .3s }
+  .mv:hover { transform:translateY(-4px); box-shadow:0 24px 50px -30px rgba(17,24,39,.4) }
+  .mv .n { position:absolute; top:14px; left:18px; font:600 12px ui-monospace,Menlo,monospace; color:#9ca3af }
+  .mv h4 { margin:6px 0 4px; font-size:16px; letter-spacing:-.01em }
+  .mv p { margin:0; font-size:13px; color:var(--mute); line-height:1.45 }
+  .mv .mus { margin-top:10px; display:flex; flex-wrap:wrap; gap:5px }
+  .mv .mus i { font-style:normal; font-size:11.5px; padding:2px 9px; border-radius:99px; background:#f3f4f6; color:var(--soft) }
+  .mv .mus i.main { background:var(--amberbg); color:var(--deep); border:1px solid var(--amberline) }
+  @media (prefers-reduced-motion:reduce) { .mvi span + span, .scroller, .float, .orbit img { animation:none !important } .mvi span + span { display:none } }
+
+  /* video → routine */
+  .pipe { display:grid; grid-template-columns:300px 1fr; gap:4vw; align-items:center }
+  .sheets { position:relative; height:330px; margin-bottom:22px }
+  .sheets img { position:absolute; height:300px; border-radius:12px; border:1px solid var(--line); box-shadow:0 20px 40px -25px rgba(17,24,39,.4); transition:transform .9s cubic-bezier(.2,.8,.2,1) }
+  .sheets img:nth-child(1) { left:0 } .sheets img:nth-child(2) { left:0 } .sheets img:nth-child(3) { left:0 }
+  .in .sheets img:nth-child(2) { transform:translateX(230px) rotate(2deg) }
+  .in .sheets img:nth-child(3) { transform:translateX(460px) rotate(-2deg) }
+  .scan { position:absolute; top:0; height:300px; left:0; width:3px; background:var(--amber); box-shadow:0 0 18px 4px rgba(245,158,11,.55); opacity:0; border-radius:3px }
+  .in .scan { animation:scan 3.2s 1s ease-in-out infinite }
+  @keyframes scan { 0% { left:0; opacity:1 } 90% { left:670px; opacity:1 } 100% { left:670px; opacity:0 } }
+  .read { background:#0b0f19; color:#e5e7eb; border-radius:18px; padding:18px 20px; font:13px/1.75 ui-monospace,Menlo,monospace; max-width:720px }
+  .read .t { color:#9ca3af }
+  .read div { opacity:0; transform:translateX(-6px); transition:all .4s }
+  .read.go div { opacity:1; transform:none }
+  .arrow { font-size:13px; color:var(--mute); margin:14px 0; display:flex; align-items:center; gap:10px }
+  .arrow::before { content:""; height:1px; width:40px; background:var(--line) }
+  .costs { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:22px; max-width:720px }
+  .costs div { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px 16px }
+  .costs b { display:block; font-size:28px; letter-spacing:-.03em }
+  .costs span { font-size:12.5px; color:var(--mute) }
+
+  /* products */
+  .shelf { display:flex; gap:18px; flex-wrap:wrap; margin:6px 0 26px }
+  .shelf img { width:78px; height:78px; object-fit:contain; filter:drop-shadow(0 10px 12px rgba(17,24,39,.12)) }
+
+  /* WhatsApp */
+  .wa { background:#efeae2; padding:58px 12px 14px; height:100%; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; gap:6px; font-size:12.5px }
+  .wa .top { position:absolute; top:0; left:0; right:0; padding:42px 16px 10px; background:#f7f5f2; font-weight:600; font-size:13px; border-bottom:1px solid #e7e2da }
+  .wa .top small { display:block; font-weight:400; color:var(--mute); font-size:11px }
+  .wa p { margin:0; padding:7px 10px 16px; border-radius:10px; max-width:86%; position:relative; line-height:1.35; box-shadow:0 1px 0 rgba(0,0,0,.06); opacity:0; transform:translateY(8px); transition:all .5s }
+  .wa p i { position:absolute; right:8px; bottom:3px; font-size:10px; color:#8696a0; font-style:normal }
+  .wa p.me { align-self:flex-end; background:#d9fdd3 }
+  .wa p.it { align-self:flex-start; background:#fff }
+  .wa p.au::before { content:"🎤 Audio · "; color:#8696a0 }
+  .in .wa p { opacity:1; transform:none }
+
+  /* sources */
+  .hub { position:relative; height:520px; max-width:860px }
+  .hub .c { position:absolute; left:50%; top:50%; width:150px; height:150px; margin:-75px 0 0 -75px; border-radius:50%; background:#fff; border:1px solid var(--line); display:grid; place-items:center; box-shadow:0 30px 60px -30px rgba(17,24,39,.4) }
+  .hub .c img { width:90px }
+  .src { position:absolute; width:190px; background:#fff; border:1px solid var(--line); border-radius:18px; padding:12px 14px; font-size:13px; color:var(--soft) }
+  .src b { display:block; color:var(--ink); font-size:15px }
+  .hub svg { position:absolute; inset:0; width:100%; height:100% }
+  .hub path { stroke:#e5e7eb; stroke-width:2; fill:none }
+  .hub path.f { stroke:var(--amber); stroke-dasharray:6 120; animation:flow 2.4s linear infinite }
+  @keyframes flow { to { stroke-dashoffset:-126 } }
+
+  .status { display:grid; grid-template-columns:1fr 1fr; gap:14px; max-width:980px }
+  .status div { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 18px; font-size:14.5px; color:var(--soft) }
+  .status b { color:var(--ink) }
+  .status .live { border-color:#111827 }
+  .status .lap { background:var(--amberbg); border-color:var(--amberline) }
+  footer { padding:40px 7vw 80px; color:var(--mute); font-size:12.5px }
+
+  @media (max-width:900px) { .two, .two.flip, .pipe, .flow, .status { grid-template-columns:1fr } .orbit { position:relative; right:auto; top:auto; transform:none; width:100%; margin-top:30px } .stack { height:auto } .stack > * { position:static; width:100%; margin-top:16px } #dots { display:none } .sheets { transform:scale(.6); transform-origin:left top; height:200px } }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<nav id="dots"></nav>
+
+<section id="cover" data-t="Salud">
+  <img class="logo r" src="img/pulso.webp" alt="">
+  <div class="k r" style="--i:1">Product book · <b>22 oct 2026</b></div>
+  <h1 class="r" style="--i:2">Salud</h1>
+  <p class="sub r" style="--i:3">Your health, kept by talking. It writes everything down and tells you the next thing to do.</p>
+  <p class="meta r" style="--i:4">Real app, real screens, recorded on localhost with a test login. Built by Javier.</p>
+  <div class="orbit">
+    <img src="img/sleep.webp" style="left:2%;top:4%;animation-delay:-1s" alt="">
+    <img src="img/food.webp" style="right:0;top:8%;animation-delay:-2.5s" alt="">
+    <img src="img/pill.webp" style="left:0;bottom:10%;animation-delay:-3.2s" alt="">
+    <img src="img/medical.webp" style="right:4%;bottom:4%;animation-delay:-.4s" alt="">
+    <img src="img/book.webp" style="left:40%;bottom:-6%;width:16%;animation-delay:-4s" alt="">
+    <div class="mv-big"><div class="mvi" style="--src:url('img/mov/mov-kettlebell-swing.webp')"><span></span><span></span></div></div>
+  </div>
+</section>
+
+<section id="idea" data-t="The idea">
+  <div class="k r">01 · <b>The idea</b></div>
+  <h2 class="r" style="--i:1">Three steps. You only do the first.</h2>
+  <div class="flow">
+    <div class="step r" style="--i:2"><em>1</em><img src="img/work.webp" alt=""><h3>You talk</h3><p>WhatsApp or the app. Text, a voice note, a photo of a plate or a cream, a training video.</p></div>
+    <div class="step r" style="--i:3"><em>2</em><img src="img/habit.webp" alt=""><h3>It writes it down</h3><p>Meals, sets, pills, sleep, medical things. Plus WHOOP, Pocket, GitHub and your WhatsApp, on their own.</p></div>
+    <div class="step r" style="--i:4"><em>3</em><img src="img/warning.webp" alt=""><h3>It tells you what's next</h3><p>A morning note, a bedtime alert, reminders, and the one urgent thing. Three nudges a day at most.</p></div>
+  </div>
+</section>
+
+<section id="panel" data-t="The panel">
+  <div class="two">
+    <div>
+      <div class="k r">02 · <b>The panel</b></div>
+      <h2 class="r" style="--i:1">Only what matters today.</h2>
+      <p class="lead r" style="--i:2">Titles only. Each line opens its detail. Every number lives one tap away in «Datos».</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/warning.webp" alt=""><span><b>Lo urgente</b> · the one thing that can't wait, with a «Llamar» button</span></li>
+        <li class="r" style="--i:4"><img src="img/habit.webp" alt=""><span><b>Hoy</b> · today's checklist: tick it, or send a photo</span></li>
+        <li class="r" style="--i:5"><img src="img/run.webp" alt=""><span><b>Esta semana</b> · each goal and how far you are: «faltan 3»</span></li>
+        <li class="r" style="--i:6"><img src="img/gym.webp" alt=""><span><b>Entrenos, Comida, Piel</b> · what you trained, ate and put on</span></li>
+      </ul>
+    </div>
+    <div class="r" style="--i:2"><div class="laptop"><video src="clips/panel.mp4" poster="clips/panel.jpg" autoplay muted loop playsinline></video></div><p class="cap" style="margin-top:28px">Recorded on the real app: the panel opening and scrolling.</p></div>
+  </div>
+</section>
+
+<section id="urgente" data-t="Lo urgente">
+  <div class="two flip">
+    <div class="stack r">
+      <img class="shot float" src="img/shots/22-urgente-paaf-cerca.png" style="left:0;top:0;width:78%" alt="">
+      <img class="shot float" src="img/shots/20-urgente.png" style="right:0;top:400px;width:74%;animation-delay:-3s" alt="">
+    </div>
+    <div>
+      <div class="k r">03 · <b>Lo urgente · historial médico</b></div>
+      <h2 class="r" style="--i:1">Nothing medical gets lost.</h2>
+      <p class="lead r" style="--i:2">Every test, visit and result in one timeline, read from what you say and from the documents you send. What's pending rises to the top.</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/medical.webp" alt=""><span><b>Pending first</b>: the referral, how old it is, the phone to call</span></li>
+        <li class="r" style="--i:4"><img src="img/book.webp" alt=""><span><b>By body area</b>: neck, analyses, history; tap one for the full report</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="hoy" data-t="Hoy y semana">
+  <div class="two">
+    <div>
+      <div class="k r">04 · <b>Hoy · Esta semana</b></div>
+      <h2 class="r" style="--i:1">Habits as one tap.</h2>
+      <p class="lead r" style="--i:2">Pill, reading, morning and night routines, supplements: one circle each. The week shows dots per day and what's missing.</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/pill.webp" alt=""><span><b>Pastilla, leer</b> · a photo counts as proof</span></li>
+        <li class="r" style="--i:4"><img src="img/kinds/crema-solar.webp" alt=""><span><b>Rutina de mañana / noche</b> · the creams you saved, in order</span></li>
+        <li class="r" style="--i:5"><img src="img/kinds/omega-3.webp" alt=""><span><b>En ayunas, media mañana, antes de entrenar</b> · your supplement protocol</span></li>
+        <li class="r" style="--i:6"><img src="img/sleep.webp" alt=""><span><b>A la cama antes de las 01:00</b> · from your WHOOP wake-up time</span></li>
+      </ul>
+    </div>
+    <div style="display:flex;gap:28px;align-items:center;justify-content:center">
+      <div class="phone r" style="--i:2"><div class="scr"><video src="clips/panel-movil.mp4" poster="clips/panel-movil.jpg" autoplay muted loop playsinline></video></div></div>
+      <img class="shot r float" style="--i:4;width:300px" src="img/shots/40-semana.png" alt="">
+    </div>
+  </div>
+</section>
+
+<section id="entrenos" data-t="Entrenos">
+  <div class="two flip">
+    <div style="display:flex;gap:28px;align-items:center;justify-content:center">
+      <div class="phone r"><div class="scr"><video src="clips/entrenos-movil.mp4" poster="clips/entrenos-movil.jpg" autoplay muted loop playsinline></video></div></div>
+      <img class="shot r float" style="--i:3;width:300px" src="img/shots/36-entrenos-ejercicio.png" alt="">
+    </div>
+    <div>
+      <div class="k r">05 · <b>Entrenos</b></div>
+      <h2 class="r" style="--i:1">Say «press banca 80 kg 3x8». See your body.</h2>
+      <p class="lead r" style="--i:2">The muscles you worked this week light up. It says what's due next («Mañana toca pecho y hombros»), how much you lift, and every session.</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/gym.webp" alt=""><span><b>Series per muscle</b>: Glúteos 21 · Cuádriceps 16 · Hombros 14</span></li>
+        <li class="r" style="--i:4"><img src="img/run.webp" alt=""><span><b>Cuánto levantas</b>: Press banca 87,5 kg ×4, +7,5 kg</span></li>
+        <li class="r" style="--i:5"><img src="img/habit.webp" alt=""><span><b>Rutinas</b>: saved once, done in full or in part</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="video" data-t="Del vídeo a la rutina">
+  <div class="k r">06 · <b>From a video to a routine</b> <span class="tag a">new · 22 oct</span></div>
+  <h2 class="r" style="--i:1;max-width:22ch">Send the video someone gave you. Get the routine.</h2>
+  <div class="pipe">
+    <div class="phone r" style="--i:2"><div class="scr" style="background:#000"><video src="clips/video-pierna.mp4" autoplay muted loop playsinline></video></div></div>
+    <div>
+      <div class="sheets r" style="--i:3" id="sheets">
+        <img src="img/hoja-1.jpg" alt=""><img src="img/hoja-2.jpg" alt=""><img src="img/hoja-3.jpg" alt="">
+        <div class="scan"></div>
+      </div>
+      <div class="arrow r" style="--i:4">60 frames on 3 sheets, read in one call · about 4 cents</div>
+      <div class="read r" style="--i:5" id="read">
+        <div class="t">Lo que se ve en el vídeo (50 s), leído de sus fotogramas:</div>
+        <div>0 a 3 s · Sentadilla isométrica en pared</div>
+        <div>3 a 9 s · Zancada estática (split squat), 4 reps</div>
+        <div>9 a 16 s · Sentadilla isométrica en pared a una pierna</div>
+        <div>16 a 24 s · Puente de glúteo a una pierna con banda</div>
+        <div>25 a 29 s · Oso a pica</div>
+        <div>29 a 33 s · Sentadilla a una pierna con fitball, 4 reps</div>
+        <div>34 a 50 s · Zancada estática con mancuernas</div>
+      </div>
+      <div class="arrow r" style="--i:6">saved as «Rutina de pierna», today's session linked to it</div>
+      <div class="costs">
+        <div class="r" style="--i:7"><b>$0,04</b><span>to read a video</span></div>
+        <div class="r" style="--i:8"><b>«3 de 7»</b><span>doing part of it counts too, linked to the routine</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap r" style="margin-top:22px">Your video (WhatsApp, 21-jul, 50 s) and the 3 contact sheets made from it. The lines are the routine it saved.</p>
+</section>
+
+<section id="tres-d" data-t="Cada ejercicio en 3D">
+  <div class="two" style="align-items:end;margin-bottom:34px">
+    <div>
+      <div class="k r">07 · <b>Every exercise, in 3D</b></div>
+      <h2 class="r" style="--i:1">Drawn once. Then it moves.</h2>
+    </div>
+    <p class="lead r" style="--i:2;margin:0">The first time you name an exercise, it looks it up on the web (how it's done, which muscles) and draws one brushed-aluminium mannequin in two poses. The app crossfades them: one rep every 2.4 s. About 5 cents, once.</p>
+  </div>
+  <div class="gal" id="gal"></div>
+</section>
+
+<section id="comida" data-t="Comida y piel">
+  <div class="two">
+    <div>
+      <div class="k r">08 · <b>Comida · Piel</b></div>
+      <h2 class="r" style="--i:1">A photo is enough.</h2>
+      <p class="lead r" style="--i:2">A plate, a label, a cream, a supplement: it reads it, saves it, and checks the evidence for your dose.</p>
+      <div class="shelf">
+        <img class="r float" style="--i:3" src="img/kinds/yogur-proteinas-natural.webp" alt="">
+        <img class="r float" style="--i:4;animation-delay:-1s" src="img/kinds/serum-de-retinol.webp" alt="">
+        <img class="r float" style="--i:5;animation-delay:-2s" src="img/kinds/crema-solar.webp" alt="">
+        <img class="r float" style="--i:6;animation-delay:-3s" src="img/kinds/omega-3.webp" alt="">
+        <img class="r float" style="--i:7;animation-delay:-4s" src="img/kinds/solgar-magnesio-bisglicinato-gotas.webp" alt="">
+        <img class="r float" style="--i:8;animation-delay:-5s" src="img/kinds/agua.webp" alt="">
+      </div>
+      <ul class="pts">
+        <li class="r" style="--i:6"><img src="img/food.webp" alt=""><span><b>Meals</b>: kcal, protein, fibre from the photo or the label; against your 120 g of protein</span></li>
+        <li class="r" style="--i:7"><img src="img/kinds/retinol.webp" alt=""><span><b>Products</b>: what each ingredient does, what to watch, how to apply</span></li>
+        <li class="r" style="--i:8"><img src="img/pill.webp" alt=""><span><b>Doses checked</b>: «Creatina 8-10 g: 3-5 g already does it»</span></li>
+      </ul>
+    </div>
+    <div class="stack">
+      <img class="shot r float" style="left:0;top:20px;width:56%" src="img/shots/49-comida-detalle.png" alt="">
+      <img class="shot r float" style="--i:2;right:0;top:120px;width:56%;animation-delay:-3s" src="img/shots/52-producto-piel.png" alt="">
+    </div>
+  </div>
+</section>
+
+<section id="efectos" data-t="Bien y mal">
+  <div class="two flip">
+    <div class="stack">
+      <img class="shot r float" style="left:0;top:0;width:66%" src="img/shots/58-efectos-entero.png" alt="">
+      <img class="shot r float" style="--i:2;right:0;top:250px;width:60%;animation-delay:-2.5s" src="img/shots/56-hallazgo.png" alt="">
+    </div>
+    <div>
+      <div class="k r">09 · <b>What does you good and harm</b></div>
+      <h2 class="r" style="--i:1">From your own nights, not averages.</h2>
+      <p class="lead r" style="--i:2">243 nights of WHOOP against what you did each day. What moves your recovery, how sure it is, and the study behind it.</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/sleep.webp" alt=""><span><b>Acostarte antes de las 02:00</b> · +19 points of recovery (67 % vs 47 %)</span></li>
+        <li class="r" style="--i:4"><img src="img/run.webp" alt=""><span><b>Semana con 150 min de cardio</b> · −12, marked «probable»</span></li>
+        <li class="r" style="--i:5"><img src="img/habit.webp" alt=""><span><b>«Probarlo dos semanas»</b> · turns a finding into an experiment</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="whatsapp" data-t="WhatsApp">
+  <div class="two">
+    <div>
+      <div class="k r">10 · <b>WhatsApp</b> <span class="tag m">mockup, real texts</span></div>
+      <h2 class="r" style="--i:1">It writes first. You answer like a friend.</h2>
+      <p class="lead r" style="--i:2">Its own number. A voice note becomes an alarm, a routine step, a product to look up. Every bubble here was really sent, 20–21 oct.</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/sleep.webp" alt=""><span><b>Morning note</b> after WHOOP scores the night</span></li>
+        <li class="r" style="--i:4"><img src="img/food.webp" alt=""><span><b>Nudges</b> at meal time, before training, at bedtime</span></li>
+        <li class="r" style="--i:5"><img src="img/work.webp" alt=""><span><b>Your replies</b>: text, voice, photo, video; same agent as the app</span></li>
+      </ul>
+    </div>
+    <div style="display:flex;justify-content:center">
+      <div class="phone r" style="--i:2;width:330px"><div class="scr"><div class="wa">
+        <div class="top">Salud<small>+34 621 33 93 27</small></div>
+        <p class="it" style="transition-delay:.2s">Toca rutina de noche: Epitheliale Ultra Repair<i>21:30</i></p>
+        <p class="me au" style="transition-delay:.9s">De hecho, mañana tengo que levantarme un poco antes. Tengo un tren a las siete y media… La rutina de cara de la noche ya me la acabo de hacer.<i>00:50</i></p>
+        <p class="it" style="transition-delay:1.7s">Despertador a las 6:45 para el tren. Hecho. Rutina de noche.<i>00:51</i></p>
+        <p class="it" style="transition-delay:2.1s">El gel de La Roche-Posay no lo tengo guardado, mándame foto de la etiqueta y lo dejo apuntado bien.<i>00:51</i></p>
+        <p class="it" style="transition-delay:2.9s">Toca comida: busca proteína y legumbre o verdura, vas a 0 de 120 g y 0 de 25 g de fibra hoy.<i>13:30</i></p>
+        <p class="it" style="transition-delay:3.7s">Llevas 6h39 de sueño… Nada de cardio hoy, mejor 20-25 min de pesas suaves en el hueco que tengas. ¿Ánimo ahora, del 1 al 10?<i>18:00</i></p>
+      </div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="datos" data-t="Datos">
+  <div class="two flip">
+    <div class="r"><div class="laptop"><video src="clips/datos.mp4" poster="clips/datos.jpg" autoplay muted loop playsinline></video></div></div>
+    <div>
+      <div class="k r">11 · <b>Datos</b></div>
+      <h2 class="r" style="--i:1">Every number, one tap behind.</h2>
+      <p class="lead r" style="--i:2">Sleep, recovery, training, weight, code, calls: 7-day bars against your usual. Then day by day, everything you've noted, and WHOOP.</p>
+      <ul class="pts">
+        <li class="r" style="--i:3"><img src="img/sleep.webp" alt=""><span><b>Sueño 6 h 05</b> · Recuperación 58 % · each with its trend</span></li>
+        <li class="r" style="--i:4"><img src="img/work.webp" alt=""><span><b>Código 31.017 lines</b> · 13 calls: work counts too</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="solo" data-t="Va solo">
+  <div class="k r">12 · <b>What runs by itself</b></div>
+  <h2 class="r" style="--i:1">No sync button.</h2>
+  <p class="lead r" style="--i:2">Every 10 minutes, and on every new night or workout, the sources come in. You never open anything.</p>
+  <div class="hub r" style="--i:3">
+    <svg viewBox="0 0 860 520" preserveAspectRatio="none">
+      <path d="M190 80 C 330 80, 330 260, 430 260"/><path class="f" d="M190 80 C 330 80, 330 260, 430 260"/>
+      <path d="M190 260 L 430 260"/><path class="f" d="M190 260 L 430 260" style="animation-delay:-.8s"/>
+      <path d="M190 440 C 330 440, 330 260, 430 260"/><path class="f" d="M190 440 C 330 440, 330 260, 430 260" style="animation-delay:-1.6s"/>
+      <path d="M670 80 C 530 80, 530 260, 430 260"/><path class="f" d="M670 80 C 530 80, 530 260, 430 260" style="animation-delay:-.4s"/>
+      <path d="M670 440 C 530 440, 530 260, 430 260"/><path class="f" d="M670 440 C 530 440, 530 260, 430 260" style="animation-delay:-1.2s"/>
+    </svg>
+    <div class="c"><img src="img/pulso.webp" alt=""></div>
+    <div class="src" style="left:0;top:40px"><b>WHOOP</b>sleep, recovery, workouts; plus Apple Health from the phone</div>
+    <div class="src" style="left:0;top:222px"><b>Pocket</b>recordings → calls, life, medical things heard</div>
+    <div class="src" style="left:0;top:400px"><b>GitHub</b>lines of code, you and Gonzalo</div>
+    <div class="src" style="right:0;top:40px"><b>Your WhatsApp</b>once a day: each chat's tone and topic</div>
+    <div class="src" style="right:0;top:400px"><b>The assistant</b>after each pass: is a note or an alert due?</div>
+  </div>
+</section>
+
+<section id="estado" data-t="Estado">
+  <div class="k r">13 · <b>Where it stands</b></div>
+  <h2 class="r" style="--i:1">Live, and what's next.</h2>
+  <div class="status">
+    <div class="live r" style="--i:2"><b>Live</b> · chat, panel, WhatsApp 621, medical history, Hoy and the week, Entrenos, Comida, Piel, Datos, Cómo te afecta.</div>
+    <div class="lap r" style="--i:3"><b>On the laptop, next deploy</b> · routines from a video, the 3D drawings for every exercise, the supplement protocol, «mañana y noche» products.</div>
+    <div class="r" style="--i:4"><b>Cost</b> · a video read ~$0,04 · a drawing ~$0,05, once per exercise · a chat turn ~$0,05.</div>
+    <div class="r" style="--i:5"><b>For you, Gonzalo</b> · a demo copy with made-up data and your own login, ready to switch on.</div>
+  </div>
+</section>
+
+<footer>Screens and clips: the real app on localhost:3100, 22-oct-2026, logged in with a test account over a copy of Javier's data (~18-oct, plus the routine tests). The WhatsApp phone is drawn; its texts are real.</footer>
+
+<script>
+const MOVES = [{"key": "sentadilla-isometrica-en-pared", "name": "Sentadilla isométrica en pared", "how": "Espalda pegada a la pared, deslízate hasta flexionar rodillas noventa grados y aguanta la postura.", "n": "01", "main": ["Glúteos", "Cuádriceps"], "also": ["Gemelos", "Isquios"]}, {"key": "sentadilla-isometrica-en-pared-a-una-pie", "name": "Sentadilla isométrica en pared a una pierna", "how": "Espalda en la pared, flexiona una pierna a noventa grados y aguanta sin moverte.", "n": "02", "main": ["Glúteos", "Cuádriceps"], "also": ["Isquios", "Aductores"]}, {"key": "zancada-estatica", "name": "Zancada estática", "how": "Con un pie delante y otro detrás, bajas hasta que ambas rodillas formen 90 grados, sin desplazarte.", "n": "03", "main": ["Glúteos", "Cuádriceps"], "also": ["Isquios", "Aductores"]}, {"key": "puente-de-gluteo-a-una-pierna-con-banda", "name": "Puente de glúteo a una pierna con banda", "how": "Tumbado boca arriba, banda sobre las rodillas, apoyas un pie y elevas la cadera con la otra pierna extendida.", "n": "04", "main": ["Glúteos"], "also": ["Isquios", "Lumbares", "Aductores"]}, {"key": "oso-a-pica", "name": "Oso a pica", "how": "Desde el paso del oso, empujas las caderas hacia arriba y atrás formando una pica.", "n": "05", "main": ["Isquios", "Cuádriceps"], "also": ["Abdomen", "Gemelos", "Glúteos"]}, {"key": "sentadilla-a-una-pierna-con-fitball", "name": "Sentadilla a una pierna con fitball", "how": "Con el fitball entre la espalda y la pared, baja en sentadilla apoyado en una sola pierna.", "n": "06", "main": ["Glúteos", "Cuádriceps"], "also": ["Isquios", "Aductores"]}, {"key": "zancada-estatica-con-mancuernas", "name": "Zancada estática con mancuernas", "how": "De pie con mancuernas, das un paso fijo y bajas la rodilla trasera casi al suelo repetidamente.", "n": "07", "main": ["Glúteos", "Cuádriceps"], "also": ["Isquios", "Aductores"]}, {"key": "press-banca", "name": "Press banca", "how": "Tumbado boca arriba en un banco, bajas la barra hasta el pecho y la empujas hacia arriba hasta extender los brazos.", "n": "", "main": ["Pecho", "Hombros", "Tríceps"], "also": []}, {"key": "kettlebell-swing", "name": "Kettlebell swing", "how": "De pie, llevas la pesa de entre las piernas a la altura del pecho con un golpe de cadera.", "n": "", "main": ["Glúteos", "Isquios"], "also": ["Espalda", "Lumbares"]}, {"key": "turkish-get-up", "name": "Turkish get up", "how": "Tumbado boca arriba, levantas una pesa sobre el hombro y te pones de pie sin bajarla.", "n": "", "main": ["Abdomen", "Hombros", "Oblicuos"], "also": ["Glúteos", "Cuádriceps"]}];
+const gal = document.getElementById("gal");
+gal.innerHTML = MOVES.map((m, i) => `<div class="mv r" style="--i:${i % 5}">${m.n ? `<span class="n">${m.n}</span>` : ""}<div class="mvi" style="--src:url('img/mov/mov-${m.key}.webp')"><span></span><span></span></div><h4>${m.name}</h4><p>${m.how}</p><div class="mus">${m.main.map((x) => `<i class="main">${x}</i>`).join("")}${m.also.map((x) => `<i>${x}</i>`).join("")}</div></div>`).join("");
+
+// Chapters: reveal on entry, dots, progress bar, ←/→ to jump.
+const secs = [...document.querySelectorAll("section")];
+const dots = document.getElementById("dots");
+dots.innerHTML = secs.map((s) => `<a href="#${s.id}" data-t="${s.dataset.t}"></a>`).join("");
+const io = new IntersectionObserver((es) => es.forEach((e) => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add("in");
+  if (e.target.id === "video") setTimeout(() => readLines(), 1800);
+}), { threshold: 0.18 });
+secs.forEach((s) => io.observe(s));
+// Gallery cards reveal one by one as they come in.
+const io2 = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && e.target.classList.add("in")), { threshold: 0.2 });
+document.querySelectorAll(".mv").forEach((m) => io2.observe(m));
+let read = false;
+function readLines() {
+  if (read) return; read = true;
+  const box = document.getElementById("read"); box.classList.add("go");
+  [...box.children].forEach((d, i) => { d.style.transitionDelay = `${i * 0.35}s`; });
+}
+const bar = document.getElementById("bar");
+function onScroll() {
+  const h = document.documentElement; bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100 + "%";
+  const mid = scrollY + innerHeight / 2;
+  const cur = secs.findLastIndex((s) => s.offsetTop <= mid);
+  [...dots.children].forEach((d, i) => d.classList.toggle("on", i === cur));
+}
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+addEventListener("keydown", (e) => {
+  if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", " "].includes(e.key)) return;
+  const cur = secs.findLastIndex((s) => s.offsetTop <= scrollY + 10);
+  const next = e.key === "ArrowUp" || e.key === "ArrowLeft" ? Math.max(0, cur - 1) : Math.min(secs.length - 1, cur + 1);
+  e.preventDefault(); secs[next].scrollIntoView({ behavior: "smooth" });
+});
+</script>
+</body>
+</html>

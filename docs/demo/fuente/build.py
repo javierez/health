@@ -9,7 +9,8 @@ r = lambda n: open(D + n).read()
 def fig(n, c, style=''): return f'<figure{style}><a href="shots/{n}.png"><img src="shots/{n}.png" alt="" loading="lazy"></a><figcaption>{c}</figcaption></figure>'
 def grid(cls, items): return f'<div class="shots {cls}">' + ''.join(fig(n, c) for n, c in items) + '</div>'
 
-head = r('head.html').replace('</style>', '  .tag.ex { background:#f3f4f6; color:var(--ink); border:1px dashed #9ca3af }\n</style>')
+head = r('head.html').replace('</style>', '  .tag.ex { background:#f3f4f6; color:var(--ink); border:1px dashed #9ca3af }\n' + '  .mvs { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-top:10px }\n  .mv { position:relative; background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:4px; font-size:13.5px }\n  .mv small { color:var(--mute); font-size:12px; line-height:1.4 }\n  .mv small b { color:var(--ink); font-weight:600 }\n  .mv a { font-size:11.5px; color:var(--mute) }\n  .mvn { position:absolute; top:10px; left:12px; font-size:12px; color:#9ca3af; font-variant-numeric:tabular-nums }\n  .mvi { position:relative; width:100%; aspect-ratio:3/4; margin-bottom:4px }\n  .mvi span { position:absolute; inset:0; background:var(--src) left/200% 100% no-repeat; clip-path:inset(0 2%) }\n  .mvi span + span { background-position:right; opacity:0; animation:rep 2.4s ease-in-out infinite }\n  @keyframes rep { 0%,35% { opacity:0 } 50%,85% { opacity:1 } 100% { opacity:0 } }\n  @media (prefers-reduced-motion:reduce) { .mvi span + span { display:none } }\n  .bub { max-width:520px; padding:9px 13px; border-radius:16px; font-size:14px; margin:6px 0 }\n  .bub.me { margin-left:auto; background:#111827; color:#fff }\n  .bub.me i { color:#9ca3af; font-style:normal; margin-right:6px }\n  .bub.it { background:#f3f4f6 }\n  .bub.sys { background:#fff; border:1px dashed #9ca3af; color:var(--mute); font:12.5px/1.5 ui-monospace,Menlo,monospace; white-space:pre-wrap; max-width:none }\n  .ok { color:#111827 } .ko { color:#b45309; font-weight:600 }\n</style>')
+renders = r('renders.html')
 tools = r('tools.html'); rules = r('rules.html')
 wa = r('wa.html')
 solo = r('solo.html')
@@ -17,7 +18,7 @@ entrar = r('entrar.html')
 entrar = entrar.replace('{LOGIN}', grid('', [('01-login', 'Any URL without a session lands here'), ('02-login-error', 'Wrong password: «Email o contraseña incorrectos»'), ('03-login-relleno', 'Filled in; the eye shows the password')]))
 entrar = entrar.replace('{RESET}', grid('four', [('04-recuperar', 'Your email, then «Enviar código SMS»'), ('05-codigo-incorrecto', 'A wrong code: «Te quedan 4 intentos»'), ('06-codigo', 'A new password without a capital: «Falta una mayúscula»'), ('07-cambiada', 'Done: «Contraseña cambiada. Entra con la nueva.»')]))
 
-nav = [('mapa', 'How it fits together'), ('entrar', 'Entrar'), ('chat', 'Chat'), ('panel', 'Panel'), ('urgente', 'Lo urgente'), ('hoy', 'Hoy'), ('entrenos', 'Entrenos'), ('semana', 'Esta semana'), ('comida', 'Comida'), ('productos', 'Piel'), ('bano', 'Baño'), ('bienmal', 'Lo que te hace bien y mal'), ('datos', 'Datos'), ('movil', 'Móvil'), ('whatsapp', 'WhatsApp 621'), ('solo', 'Lo que va solo'), ('estado', 'Estado')]
+nav = [('mapa', 'How it fits together'), ('entrar', 'Entrar'), ('chat', 'Chat'), ('panel', 'Panel'), ('urgente', 'Lo urgente'), ('hoy', 'Hoy'), ('entrenos', 'Entrenos'), ('rutinas', 'Rutinas, vídeo y 3D'), ('gimnasio', 'En el gimnasio'), ('semana', 'Esta semana'), ('comida', 'Comida'), ('productos', 'Piel'), ('bano', 'Baño'), ('bienmal', 'Lo que te hace bien y mal'), ('datos', 'Datos'), ('movil', 'Móvil'), ('whatsapp', 'WhatsApp 621'), ('solo', 'Lo que va solo'), ('estado', 'Estado')]
 
 body = f'''
 <main>
@@ -35,7 +36,7 @@ body = f'''
     <tr><td><b>WhatsApp</b></td><td>Morning note, bedtime alert, reminders. You can answer it like the chat.</td><td>+34 621 33 93 27</td></tr>
     <tr><td><b>Background</b></td><td>Nothing to do. WHOOP, Pocket, GitHub and your WhatsApp come in by themselves.</td><td>every 10 min</td></tr>
   </table>
-  <p class="note">Every screenshot is the real app on <code>localhost:3100</code>, logged in, with the local data, on 18-oct after the redesign. Nothing was sent to the chat but two test photos of a yogurt (one real turn, for «Comida») three toilet messages (for «Baño») and eight for «Lo que apuntas». Three things are marked: the test products in «Piel» and «Comida» (supplements) and the test gym entries in «Entrenos» and the two yogurts in «Comida» and the times in «Baño» <span class="tag ex">prueba</span>, and the WhatsApp phone in «WhatsApp 621» (a <b>mockup</b> drawn with real texts).</p>
+  <p class="note">Every screenshot is the real app on <code>localhost:3100</code>, refreshed on <b>22-oct</b>, logged in with the local <b>test</b> account on a copy of your data (<code>health_sim</code>: your data as of ~18-oct plus today's routine tests). So «Lo urgente» still shows the PAAF and the PET-TAC as they were then; production already has them updated. Marked: test entries <span class="tag ex">prueba</span>, and two <b>mockups</b> drawn with real texts (the WhatsApp phone and the video conversation). The chat screenshots and «Hoy», «Lo que te hace bien y mal» details are from 18-oct.</p>
 </section>
 
 {entrar}
@@ -118,12 +119,11 @@ body = f'''
   <h2>5 · Hoy</h2>
   <p class="lead">What's left today, title only; then what to do («Haz») and what to leave («Evita»), each with its study one click away.</p>
   <div class="grid">
-    {fig("30-hoy", "0/4: Gimnasio 3 de 4, Pastilla, Leer 20 min, A la cama; then Haz")}
+    {fig("30-hoy", '<span class="tag ex">prueba</span> At 17:12: five in sight, in the order of your day; scroll for the rest and «Haz». Amber only for what is behind')}
     <div>
       <table>
         <tr><th>Circle</th><th>Done when</th></tr>
-        <tr><td>📷</td><td>You send a photo or video (pill, book, food)</td></tr>
-        <tr><td>○</td><td>You tap it, or tell the chat</td></tr>
+        <tr><td>○</td><td>You tap it, or tell the chat. Nothing asks you for a photo</td></tr>
         <tr><td>dashed</td><td>It ticks itself from WHOOP (bedtime, training)</td></tr>
         <tr><td>none</td><td>«Evita» rows: done by not doing them</td></tr>
       </table>
@@ -133,7 +133,7 @@ body = f'''
       </ul>
     </div>
   </div>
-  {grid("", [("31-hoy-por-que", "Click a row: the why in one line, how it's ticked"), ("32-hoy-pastilla", "Pastilla: «Se marca con una foto o un vídeo al chat»"), ("33-hoy-haz", "A «Haz» row: the tip and its source")])}
+  {grid("", [("31-hoy-por-que", "Click a row: the why in one line, how it's ticked"), ("33-hoy-haz", "A «Haz» row: the tip and its source")])}
   {rules}
 </section>
 
@@ -150,6 +150,97 @@ body = f'''
     <li>Sets at different weights are one line each: «80 kg ×8 · 85 kg ×6 · 87,5 kg ×4».</li>
     <li>The gym entries shown were typed into the local chat while testing.</li>
   </ul>
+</section>
+
+<section id="rutinas">
+  <h2>0 · Rutinas, vídeo y dibujos 3D <span class="tag amber">22-oct</span></h2>
+  <p class="lead">Send a training video (one exercise, several, or a whole routine someone gave you). It names each exercise, saves the routine in order, logs what you did, and draws every new exercise once as an animated 3D mannequin.</p>
+  <div class="grid">
+    <div>
+      {fig("37-rutinas", "«Rutinas» in Entrenos: your leg routine in order, each exercise with its drawing; «jue 22 · 3 de 7» = last time, and how much of it")}
+    </div>
+    <div>
+      <h3>What happens with a video</h3>
+      <ol class="steps">
+        <li><b>Cut for free.</b> ffmpeg takes ~60 frames (one every 0,8 s) and lays them out on 3 contact sheets of 20.</li>
+        <li><b>Read once, cheap.</b> One Sonnet call reads the 3 sheets: one line per exercise, with seconds, reps, side and equipment; resting and walking go apart. ~7k tokens in, ~1k out: <b>~$0,04</b>.</li>
+        <li><b>The agent gets text</b>, not 60 images (that was ~$0,30 a turn and ran out of room). It also gets the names you already use, so the next video comes back in your words.</li>
+        <li><b>It saves</b> the routine (<code>rutina_entreno</code>: each exercise once, in order) and today's session, linked to the routine. A montage's few seconds are a sample, so it does not copy them as your sets.</li>
+        <li><b>Part of a routine</b> («hoy solo los tres primeros, 3 series») logs only those, still linked: the card shows «3 de 7».</li>
+        <li><b>Each new exercise</b> is looked up on the web once (how, muscles) and drawn once (gpt-image-1.5): a few cents, after the reply, never again.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h3>The conversation, with your video <span class="tag ex">mockup</span></h3>
+  <p class="lead" style="margin:0 0 8px">Real texts from the local test with <code>WhatsApp Video 2026-07-21 at 20.32.40.mp4</code> (50 s); the bubbles are drawn here.</p>
+  <div class="bub me"><i>Vídeo</i>Esta es la rutina de pierna que me han pasado. Hoy la he hecho entera.</div>
+  <div class="bub sys">What the reader handed the agent:
+Lo que se ve en el vídeo (50 s), leído de sus fotogramas:
+- 0 a 3 s: Sentadilla isométrica en pared (3 s aguantando)
+- 3 a 9 s: Zancada estática (split squat) (4 reps)
+- 9 a 16 s: Sentadilla isométrica en pared (3 s aguantando)
+- 16 a 24 s: Puente de glúteo a una pierna con banda (banda)
+- 25 a 29 s: Plancha de oso (3 s aguantando)
+- 29 a 33 s: Sentadilla a una pierna con fitball (4 reps, fitball)
+- 34 a 50 s: Elevación de rodilla con mancuernas alternando piernas (8 reps, mancuernas)</div>
+  <div class="bub it">Guardada tu rutina de pierna y apuntado el entreno entero de hoy. Gimnasio: 1 de 4, quedan 4 días, vas por detrás.</div>
+  <div class="bub it">Dos nombres me los he inventado por lo que se ve, corrígeme si no son esos: «puente de glúteo a una pierna con banda» y «sentadilla a una pierna con fitball».</div>
+  <div class="bub me">El último no es elevación de rodilla, es zancada estática con mancuernas. Y el primero son dos: sentadilla en pared con las dos piernas y luego a una pierna.</div>
+  <div class="bub sys">Done: «Rutina de pierna» rewritten with 7 exercises, today's session replaced. (Its reply text was not kept.)</div>
+  <div class="bub me">Hoy solo he hecho los tres primeros de la rutina de pierna, 3 series de cada.</div>
+  <div class="bub sys">Done: 3 exercises × 3 series, linked to the routine → the card says «jue 22 · 3 de 7».</div>
+
+  <h3>How well it read your video</h3>
+  <table>
+    <tr><th>#</th><th>What is in the video (checked frame by frame)</th><th>First read</th><th>Now in the routine</th></tr>
+    <tr><td>1</td><td>Wall sit, 0–2,5 s</td><td class="ok">Sentadilla isométrica en pared</td><td>Sentadilla isométrica en pared</td></tr>
+    <tr><td>2</td><td>Single-leg wall sit, 7,6–10,9 s</td><td class="ko">Same as 1 (missed the leg in the air)</td><td>Sentadilla isométrica en pared a una pierna <span class="tag">your correction</span></td></tr>
+    <tr><td>3</td><td>Split squat, hands on hips, 3,4–7,6 s</td><td class="ok">Zancada estática (split squat)</td><td>Zancada estática</td></tr>
+    <tr><td>4</td><td>Single-leg glute bridge with mini band, 11,8–20 s</td><td class="ok">Puente de glúteo a una pierna con banda</td><td>Same</td></tr>
+    <tr><td>5</td><td>From bear position, hips up straightening the legs and back down, 21–28,6 s</td><td class="ko">Plancha de oso</td><td>Oso a pica <span class="tag">your correction, 22-oct</span></td></tr>
+    <tr><td>6</td><td>Single-leg squat, fitball against the wall, 29–33 s</td><td class="ok">Sentadilla a una pierna con fitball</td><td>Same</td></tr>
+    <tr><td>7</td><td>Split squat with dumbbells, 33,6–49,6 s</td><td class="ko">Elevación de rodilla con mancuernas</td><td>Zancada estática con mancuernas <span class="tag">your correction</span></td></tr>
+  </table>
+  <ul style="margin-top:10px">
+    <li><b>4 of 7 right first time, 3 fixed with one message.</b> The reader varies a little run to run; a cheaper model (Haiku, ~1 cent) missed 2 of 6, so it stays on Sonnet.</li>
+    <li>Since today the reader knows «oso a pica» (bear position, hips up, legs straightening = a leg exercise, not a plank), and your own names win next time.</li>
+  </ul>
+
+  <h3>Every exercise, drawn in 3D</h3>
+  <p class="lead" style="margin:0 0 4px">Animated here exactly as in the app: two poses of one drawing, crossfading. Under each, how it's done and the muscles it counts (bold = main), from a web lookup.</p>
+  {renders}
+  <p class="note">Three of the seven leg drawings came out with two almost identical poses (the bridge, the single-leg wall sit, the bear one) and were redrawn once. The cause was that a <b>hold</b> has no movement, so the lookup described the same pose twice. Fixed: for a hold it now describes how you get into it, then the pose held. All drawings so far: 10, about $0,05 each.</p>
+
+  <h3>On the phone</h3>
+  <div class="shots four">{fig("90-movil-entrenos", "Entrenos")}{fig("91-movil-rutinas", "Rutinas, then Sesiones")}</div>
+</section>
+
+<section id="gimnasio">
+  <h2>0 · En el gimnasio <span class="tag amber">22-oct</span></h2>
+  <p class="lead">You train with WhatsApp open and tell it each exercise as you go. «Hoy» fills in while you talk; when the day ends it moves to «Sesiones», grouped by week.</p>
+  <div class="grid">
+    {fig("38-hoy-sesion", '<span class="tag ex">prueba</span> «Hoy» while you train: 3 of the 7 in your leg routine, each set as a pill, and «Ahora» = the next one')}
+    {fig("39-sesiones", '<span class="tag ex">prueba</span> «Sesiones»: one line per day, by week. Tap a day to open it set by set')}
+  </div>
+
+  <h3>What to send</h3>
+  <table>
+    <tr><th>You send</th><th>What it does</th><th>In production</th></tr>
+    <tr><td>«Sentadilla en pared, 2 de 45 s»</td><td>Two pills: «45 s» «45 s»</td><td><b>Works now</b></td></tr>
+    <tr><td>«Zancada 3x10 con 12 kg», typed or as an audio</td><td>Three pills «12 kg ×10»</td><td><b>Works now</b></td></tr>
+    <tr><td>«80 kg ×8, luego 85 ×6»</td><td>One pill per set, each with its weight</td><td><b>Works now</b></td></tr>
+    <tr><td>«Me ha costado, la rodilla un poco»</td><td>Kept in that day's note. The card does not show it</td><td><b>Works now</b></td></tr>
+    <tr><td>«La última eran 8, no 10»</td><td>Deletes that entry and saves it again</td><td>Works now, <b>not tried yet</b></td></tr>
+    <tr><td>A video of an exercise or a whole routine</td><td>Names each exercise and draws the new ones</td><td>After the deploy</td></tr>
+    <tr><td>«Guárdalo como rutina de pierna»</td><td>Saves the routine. From then on «Hoy» says «3 de 7» and «Ahora»</td><td>After the deploy</td></tr>
+  </table>
+  <ul style="margin-top:10px">
+    <li>An exercise you already did comes back with the same name and drawing, even with other accents or capitals. It is drawn only once.</li>
+    <li>Hours per week come from WHOOP (each workout counted up to 2 h), else from the minutes you said.</li>
+    <li>Not on the card: WHOOP strain, the «Actividad» days and your notes.</li>
+  </ul>
+  <p class="note">Step-by-step mockup of a whole session, chat on the left and «Hoy» on the right: <a href="sesiones.html">sesiones.html</a>.</p>
 </section>
 
 <section id="semana">
@@ -302,7 +393,7 @@ body = f'''
 <section id="movil">
   <h2>10 · Móvil</h2>
   <p class="lead">Same app on the phone. The camera opens directly; «Llamar» dials; the SMS code fills itself in.</p>
-  {grid("four", [("80-movil-login", "Login"), ("89-movil-recuperar", "Recuperar contraseña"), ("81-movil-chat", "Chat"), ("82-movil-panel", "Panel"), ("83-movil-urgente", "An urgent item"), ("84-movil-hoy", "Hoy"), ("85-movil-semana", "Esta semana"), ("86-movil-productos", "Piel"), ("87-movil-datos", "Datos")])}
+  {grid("four", [("90-movil-entrenos", "Entrenos"), ("91-movil-rutinas", "Rutinas"), ("80-movil-login", "Login"), ("89-movil-recuperar", "Recuperar contraseña"), ("81-movil-chat", "Chat"), ("82-movil-panel", "Panel"), ("83-movil-urgente", "An urgent item"), ("84-movil-hoy", "Hoy"), ("85-movil-semana", "Esta semana"), ("86-movil-productos", "Piel"), ("87-movil-datos", "Datos")])}
   <h3>The whole panel on the phone</h3>
   <div class="tall" style="width:360px">{fig("88-movil-panel-entero", "")}</div>
 </section>
@@ -315,7 +406,10 @@ body = f'''
   <h2>13 · Status</h2>
   <table>
     <tr><th>Item</th><th>Status</th></tr>
-    <tr><td>Everything in this guide</td><td><b>Live</b> on <code>health-five-livid.vercel.app</code> since 18-oct (deploy <code>dpl_HdQT9…</code>): <code>/login</code> answers 200, a photo without a session 401.</td></tr>
+    <tr><td>Rutinas, vídeo, 3D <span class="tag amber">22-oct</span></td><td><b>Only on your laptop.</b> Goes live with the next deploy, which also creates the <code>training_routines</code> table. Checked 22-oct: production has no routine and no training since 15-oct; the video was never sent to it.</td></tr>
+    <tr><td>«Hoy» and «Sesiones» <span class="tag amber">22-oct</span></td><td><b>Only on your laptop</b>, tried on the test copy (<code>pnpm test</code> passes). Production already has your 21-oct leg session (entry 167). It is linked to a routine once the deploy is out and you save the routine.</td></tr>
+    <tr><td>The 10 drawings</td><td>Live only in the local copy. In production each exercise is drawn the first time you log or save it (~$0,05 each).</td></tr>
+    <tr><td>Everything else in this guide</td><td><b>Live</b> on <code>health-five-livid.vercel.app</code> since 18-oct (deploy <code>dpl_HdQT9…</code>): <code>/login</code> answers 200, a photo without a session 401.</td></tr>
     <tr><td>Git</td><td><b>Not committed.</b> It was deployed from the working tree: a deploy from git would put the old version back.</td></tr>
     <tr><td>SMS for «¿Olvidaste tu contraseña?»</td><td>Local test 12/12 (code to the console). In production it needs Vesta's 4 <code>TWILIO_*</code> keys in Vercel: <b>still not in Vercel</b> (checked 18-oct). Without them the code never arrives; <code>cambiar-contrasena.sh</code> still works.</td></tr>
     <tr><td>Migrations</td><td>All 20 ran on production with the deploy, <code>photos</code> and the products clean-up included.</td></tr>
@@ -325,7 +419,7 @@ body = f'''
     <tr><td>Lo que apuntas, Ánimo y Síntomas</td><td><b>Only on your laptop.</b> Categories, <code>organizar</code>, the «Datos» tab, the two new tabs and the bedtime question are not deployed yet.</td></tr>
     <tr><td>Baño</td><td><b>Only on your laptop.</b> Not deployed yet: the agent in production does not know «Baño».</td></tr>
     <tr><td>Piel</td><td>A food or drink saved as a product (a yogurt, a Monster) was retired with the deploy; the days you took it still count.</td></tr>
-    <tr><td>Tests</td><td><code>pnpm test</code>, typecheck and lint: 0 errors</td></tr>
+    <tr><td>Tests</td><td><code>pnpm test</code>: all pass (22-oct). Typecheck and lint <b>not run</b> since 18-oct.</td></tr>
     <tr><td>Google</td><td>No keys: the button stays hidden</td></tr>
   </table>
 </section>
@@ -335,7 +429,7 @@ body = f'''
 </html>
 '''
 imgs = re.findall(r'shots/([\w-]+)\.png', body + entrar)
-navhtml = '<nav>\n  <h1>Salud</h1>\n  <p>Guía completa · 18 oct 2026 · ' + str(len(set(imgs))) + ' capturas</p>\n' + ''.join(f'  <a href="#{i}"><span>{n}</span>{t}</a>\n' for n, (i, t) in enumerate(nav)) + '</nav>'
+navhtml = '<nav>\n  <h1>Salud</h1>\n  <p>Guía completa · 22 oct 2026 · ' + str(len(set(imgs))) + ' capturas</p>\n' + ''.join(f'  <a href="#{i}"><span>{n}</span>{t}</a>\n' for n, (i, t) in enumerate(nav)) + '</nav>'
 out = head + '\n</head>\n<body>\n' + navhtml + body
 # Section numbers follow the nav, so adding a section renumbers the rest.
 order = {k: n for n, (k, _) in enumerate(nav)}
