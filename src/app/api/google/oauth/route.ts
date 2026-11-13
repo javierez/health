@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { env } from "~/env";
 import { authorizeUrl, exchangeCode, googleConfigured } from "~/server/google/client";
 
 /**
@@ -20,7 +21,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   if (error) return NextResponse.json({ ok: false, error }, { status: 400 });
 
   if (!code) {
-    if (!googleConfigured()) {
+    if (!googleConfigured() || !env.GOOGLE_REDIRECT_URI) {
       return NextResponse.json(
         { ok: false, error: "set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URI" },
         { status: 500 },

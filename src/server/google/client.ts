@@ -9,6 +9,11 @@ import type { Busy } from "~/server/commitments/standing";
  * Google Calendar and Gmail, read-only: what his week looks like, so the
  * assistant knows when there is a gap for the gym and how loaded he is.
  *
+ * The connection is Vesta's (13-nov-2026): the same Google client and the
+ * refresh token of his work calendar there, copied once into `oauth_tokens`,
+ * so nothing new to register in Google. That token reads the calendar only:
+ * the unread count answers «not ok» and the assistant leaves it out.
+ *
  * 🚨 Unlike WHOOP, Google does NOT send a refresh token on a refresh, and only
  * sends one on the first consent unless `prompt=consent` is asked. So the
  * authorize URL always asks for consent, and a refresh keeps the stored
@@ -27,8 +32,9 @@ export const SCOPES = [
 
 export type GoogleResult<T> = { ok: true; data: T } | { ok: false; reason: string };
 
+/** Enough to read with a copied token. Connecting from here (`/api/google/oauth`) also needs the redirect. */
 export function googleConfigured(): boolean {
-  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REDIRECT_URI);
+  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 }
 
 export function authorizeUrl(state: string): string {
@@ -90,7 +96,7 @@ export async function exchangeCode(code: string): Promise<GoogleResult<null>> {
 
 async function accessToken(): Promise<GoogleResult<string>> {
   const [row] = await db.select().from(oauthTokens).where(eq(oauthTokens.provider, PROVIDER)).limit(1);
-  if (!row) return { ok: false, reason: "not connected, visit /api/google/oauth" };
+  if (!row) return { ok: false, reason: "not connected: copy Vesta's calendar token into oauth_tokens" };
   if (row.expiresAt.getTime() - 60_000 > Date.now()) return { ok: true, data: row.accessToken };
   if (!row.refreshToken) return { ok: false, reason: "expired and no refresh token, reconnect" };
   // No lock, unlike WHOOP: the refresh token does not rotate, so two refreshes
