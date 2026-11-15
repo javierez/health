@@ -1,5 +1,5 @@
 import { addDays } from "~/lib/day";
-import { ZONE_LABEL, type Zone } from "~/lib/exercises";
+import { ZONE_LABEL, type Work, type Zone } from "~/lib/exercises";
 import { cn } from "~/lib/utils";
 import { LOADED, READY } from "~/server/training/next";
 import type { ZoneWeek } from "~/server/training/summary";
@@ -65,14 +65,25 @@ function Side({ side, fill, onSelect }: { side: BodySide; fill: (z: Zone) => str
   );
 }
 
-/** Front and back, every muscle as hot as it is loaded today. */
-export function BodyMap({ zones, onSelect, className }: { zones: ZoneWeek[]; onSelect?: (z: Zone) => void; className?: string }) {
+/** One session's sets on a muscle, as heat: 3 or more, 1 to 3, a little. */
+export const SESSION_HEAT = [
+  { from: 3, label: "3+ series", fill: "fill-amber-500" },
+  { from: 1, label: "1 a 3", fill: "fill-amber-300" },
+  { from: 0.01, label: "Ayudó", fill: "fill-amber-100" },
+] as const;
+
+/**
+ * Front and back, every muscle as hot as it is loaded today; or, given a
+ * session's `sets` (`Session.muscles`), as hot as that session worked it.
+ */
+export function BodyMap({ zones = [], sets, onSelect, className }: { zones?: ZoneWeek[]; sets?: Work; onSelect?: (z: Zone) => void; className?: string }) {
   const fill = (zone: Zone) => {
+    if (sets) return SESSION_HEAT.find((h) => (sets[zone] ?? 0) >= h.from)?.fill ?? "fill-gray-200";
     const z = zones.find((x) => x.zone === zone);
     return z ? zoneFill(z) : "fill-gray-200";
   };
   return (
-    <svg viewBox="39 156 1370 1205" className={className} role="img" aria-label="Cómo de cargado está cada músculo">
+    <svg viewBox="39 156 1370 1205" className={className} role="img" aria-label={sets ? "Qué músculos trabajó" : "Cómo de cargado está cada músculo"}>
       <Side side={FRONT} fill={fill} onSelect={onSelect} />
       <Side side={BACK} fill={fill} onSelect={onSelect} />
     </svg>

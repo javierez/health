@@ -9,9 +9,10 @@ import { auth } from "~/lib/auth";
  *
  * Open: the login and better-auth's own routes, the webhooks (Pocket, WHOOP
  * and the WhatsApp chat each carry their own proof) and `/api/sync`, which
- * checks its own bearer.
+ * checks its own bearer. And a session's own page, `/e/<day>-<signature>`
+ * (`~/server/training/link`), with its exercise drawings: a mannequin, nothing of his.
  */
-const OPEN = ["/login", "/api/auth/", "/api/webhooks/", "/api/sync"];
+const OPEN = ["/login", "/api/auth/", "/api/webhooks/", "/api/sync", "/e/", "/api/icon/mov-"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

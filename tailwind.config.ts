@@ -58,8 +58,13 @@ const config: Config = {
         pop: "pop 0.35s ease-out both",
         // A baked turn of a 3D object: a strip of 24 frames, played in steps.
         strip: "strip 2.8s steps(24) infinite",
-        // An exercise's two poses, each held, crossfading: one rep every 2.4 s.
-        rep: "rep 2.4s ease-in-out infinite",
+        // An exercise's two poses, each held on its own, one rep every 2.6 s
+        // (Javier, 14-nov-2026: the end drawn over the start showed two
+        // figures at once; then «una transición un poco mejor»).
+        rep: "rep 2.6s ease-in-out infinite",
+        "rep-start": "rep-start 2.6s ease-in-out infinite",
+        // A heartbeat, lub-dub; the duration is set to the pulse (`MetalHeart`).
+        beat: "beat 1s ease-out infinite",
       },
       keyframes: {
         "fade-in": { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
@@ -72,7 +77,10 @@ const config: Config = {
         grow: { "0%": { transform: "scaleY(0)" } },
         pop: { "0%": { transform: "scale(0.6)" }, "60%": { transform: "scale(1.12)" }, "100%": { transform: "scale(1)" } },
         strip: { "0%": { backgroundPositionX: "0" }, "100%": { backgroundPositionX: "calc(var(--w) * -24)" } },
-        rep: { "0%, 35%": { opacity: "0" }, "50%, 85%": { opacity: "1" }, "100%": { opacity: "0" } },
+        // Held, then a quarter-second blurred crossfade: reads as the motion.
+        rep: { "0%, 40%": { opacity: "0", filter: "blur(5px)" }, "50%, 90%": { opacity: "1", filter: "blur(0)" }, "100%": { opacity: "0", filter: "blur(5px)" } },
+        beat: { "0%, 45%, 100%": { transform: "scale(1)" }, "12%": { transform: "scale(1.14)" }, "24%": { transform: "scale(1.02)" }, "34%": { transform: "scale(1.09)" } },
+        "rep-start": { "0%, 40%": { opacity: "1", filter: "blur(0)" }, "50%, 90%": { opacity: "0", filter: "blur(5px)" }, "100%": { opacity: "1", filter: "blur(0)" } },
       },
     },
   },

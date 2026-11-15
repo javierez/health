@@ -7,6 +7,7 @@ import { Account } from "~/components/account";
 import { BoardSkeleton } from "~/components/board-skeleton";
 import { Chat } from "~/components/chat/chat";
 import { ConversationsView } from "~/components/conversations-view";
+import { LivePulse } from "~/components/live-pulse";
 import { Logo } from "~/components/logo";
 import { Effects } from "~/components/effects";
 import { FindingsCard } from "~/components/findings-card";
@@ -34,7 +35,7 @@ import { loadProgress } from "~/server/queries/progress";
 import { loadSalud } from "~/server/queries/salud";
 import { loadProducts } from "~/server/queries/products";
 import { loadPastDays, loadToday } from "~/server/queries/today";
-import { loadTraining } from "~/server/queries/training";
+import { loadTraining, loadWorkout } from "~/server/queries/training";
 import { loadWhoop } from "~/server/queries/whoop";
 import { loadMoods, loadTrackers } from "~/server/queries/trackers";
 import { olderThan, syncEverything } from "~/server/sync-all";
@@ -69,6 +70,7 @@ async function Panel() {
         <div className="mr-auto flex min-w-0 basis-full items-baseline gap-3 sm:basis-auto sm:flex-1">
           <h1 className="text-2xl sm:text-3xl"><Logo /></h1>
           <span className="truncate text-sm text-gray-500 first-letter:uppercase">{today.date}</span>
+          <LivePulse />
         </div>
         <PanelVoice />
         <Stats progress={progress} data={data} tracked={tracked} moods={moods} />
@@ -144,9 +146,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     );
   }
   if (ver === "entrenos") {
+    const training = await loadTraining();
     return (
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <TrainingView training={await loadTraining()} today={localDay(new Date())} />
+        <TrainingView training={training} last={await loadWorkout(training.sessions[0]?.day)} today={localDay(new Date())} />
       </main>
     );
   }
@@ -172,7 +175,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     <main className="flex h-dvh flex-col">
       <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 pt-6 pb-2 sm:px-6 sm:pt-8">
         <h1 className="text-2xl sm:text-3xl"><Logo /></h1>
-        <Button asChild size="pill" variant="outline">
+        <LivePulse />
+        <Button asChild size="pill" variant="outline" className="ml-auto">
           <Link href="/?ver=panel">
             <LayoutGrid />
             Panel

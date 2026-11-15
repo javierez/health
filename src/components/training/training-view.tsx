@@ -11,21 +11,25 @@ import { Modal } from "~/components/ui/modal";
 import { daysBetween } from "~/lib/day";
 import { ZONE_LABEL, type Zone } from "~/lib/exercises";
 import { cn } from "~/lib/utils";
+import type { WorkoutView } from "~/server/queries/training";
 import type { Lift, Training, ZoneWeek } from "~/server/training/summary";
 import { BodyMap, Dot, HeatLegend, isForgotten, zoneFill } from "./body-map";
+import { LastSession } from "./last-session";
 import { Move } from "./move";
 import { RoutinesCard } from "./routines-card";
-import { SessionsCard, TodayCard } from "./sessions-card";
+import { SessionsCard } from "./sessions-card";
+import { KindsGrid, YearCard } from "./year-card";
 
 const ASK = "Dime lo que entrenas: «press banca 3×8 a 80».";
 
 /**
  * «Entrenos» (Javier, 18-oct-2026: «qué estoy entrenando, cuánto levanto,
- * cuántas series… qué zonas», and later «¿qué me toca ahora?»): what to train
- * next, how loaded each muscle of a real body still is, this week's sets, the
- * weight of each exercise over time, and the last sessions. Little text.
+ * cuántas series… qué zonas», and later «¿qué me toca ahora?»; 14-nov:
+ * «todas las sesiones… el 3D más grande»): the last session big, his year,
+ * what he does, what to train next, how loaded each muscle still is, the
+ * weight of each exercise over time, and every session. Little text.
  */
-export function TrainingView({ training, today }: { training: Training; today: string }) {
+export function TrainingView({ training, last, today }: { training: Training; last: WorkoutView | null; today: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [muscle, setMuscle] = useState<Zone | null>(null);
   const shown = training.lifts.find((l) => l.name === open);
@@ -48,7 +52,9 @@ export function TrainingView({ training, today }: { training: Training; today: s
         </Card>
       ) : (
         <>
-          <TodayCard sessions={training.sessions} routines={training.routines} today={today} style={{ animationDelay: "0.08s" }} />
+          {last ? <LastSession view={last} lifts={training.lifts} routines={training.routines} today={today} style={{ animationDelay: "0.08s" }} /> : null}
+          <YearCard year={training.year} today={today} style={{ animationDelay: "0.16s" }} />
+          <KindsGrid kinds={training.kinds} today={today} style={{ animationDelay: "0.24s" }} />
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
             <Card className="p-4 animate-rise motion-reduce:animate-none lg:col-span-2" style={{ animationDelay: "0.08s" }}>
               <p className="px-2 text-lg font-semibold text-gray-900">{training.next.title}</p>
@@ -73,10 +79,9 @@ export function TrainingView({ training, today }: { training: Training; today: s
               ) : null}
 
               <RoutinesCard routines={training.routines} style={{ animationDelay: "0.24s" }} />
-
-              <SessionsCard sessions={training.sessions} today={today} style={{ animationDelay: "0.32s" }} />
             </div>
           </div>
+          <SessionsCard sessions={training.sessions} lifts={training.lifts} today={today} style={{ animationDelay: "0.32s" }} />
         </>
       )}
 
