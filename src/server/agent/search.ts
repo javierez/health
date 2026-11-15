@@ -198,7 +198,9 @@ const LOOKUPS: Record<SearchKind, (r: Range) => Promise<string[]>> = {
         and(
           gte(waMessages.day, from),
           lte(waMessages.day, to),
-          people.length > 0 ? inArray(waMessages.chat, people.map(([chat]) => chat)) : ilike(waMessages.body, like(text)!),
+          people.length > 0
+            ? inArray(waMessages.chat, people.map(([chat]) => chat))
+            : or(ilike(waMessages.body, like(text)!), ilike(waMessages.seen, like(text)!)),
         ),
       )
       .orderBy(asc(waMessages.at));

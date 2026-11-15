@@ -459,9 +459,10 @@ export const facts = pgTable(
   {
     userId: owner(),
     id: serial("id").primaryKey(),
-    /** One of the two: the recording it was heard in, or the chat message it came in. */
+    /** One of the three: the recording it was heard in, the chat message it came in, or the WhatsApp message (`~/server/evolution/told`). */
     recordingId: text("recording_id").references(() => recordings.id, { onDelete: "cascade" }),
     chatMessageId: integer("chat_message_id").references(() => chatMessages.id, { onDelete: "cascade" }),
+    waMessageId: text("wa_message_id"),
     kind: text("kind").$type<FactKind>().notNull(),
     at: timestamp("at", { withTimezone: true }).notNull(),
     day: text("day").notNull(),
@@ -725,6 +726,8 @@ export const waMessages = pgTable(
     body: text("body"),
     /** A voice note's length. */
     seconds: integer("seconds"),
+    /** What a photo shows, in one sentence: only in the chats he follows (`WHATSAPP_FOLLOW`). */
+    seen: text("seen"),
     raw: jsonb("raw").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -49,12 +49,12 @@ export async function messagesPage(page: number): Promise<{ records: EvoRecord[]
   return { records: data.messages?.records ?? [], pages: data.messages?.pages ?? 1 };
 }
 
-/** A voice note's audio, fetched by Evolution from WhatsApp. Fails once WhatsApp dropped the file (~2 weeks). */
-export async function voiceNote(id: string): Promise<{ bytes: Buffer; mime: string }> {
+/** A voice note's audio or a photo, fetched by Evolution from WhatsApp. Fails once WhatsApp dropped the file (~2 weeks). */
+export async function mediaOf(id: string): Promise<{ bytes: Buffer; mime: string }> {
   const data = await post<{ base64?: string; mimetype?: string }>("/chat/getBase64FromMediaMessage", {
     message: { key: { id } },
     convertToMp4: false,
   });
-  if (!data.base64) throw new Error(`voice note ${id}: no audio`);
-  return { bytes: Buffer.from(data.base64, "base64"), mime: data.mimetype ?? "audio/ogg" };
+  if (!data.base64) throw new Error(`media ${id}: no file`);
+  return { bytes: Buffer.from(data.base64, "base64"), mime: data.mimetype ?? "application/octet-stream" };
 }

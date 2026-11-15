@@ -80,6 +80,7 @@ export interface DayMessage {
   type: string;
   body: string | null;
   seconds: number | null;
+  seen?: string | null;
 }
 
 /**

@@ -149,11 +149,12 @@ const LABEL: Record<string, string> = {
   contactMessage: "contacto",
 };
 
-/** How a message reads in a transcript: `[nota de voz 0:25] lo que dijo`, `[foto] la caption`. */
-export function lineText(m: { type: string; body: string | null; seconds: number | null }): string {
+/** How a message reads in a transcript: `[nota de voz 0:25] lo que dijo`, `[foto: dos cafés] la caption`. */
+export function lineText(m: { type: string; body: string | null; seconds: number | null; seen?: string | null }): string {
   const label = LABEL[m.type];
   const len = m.seconds ? ` ${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, "0")}` : "";
-  const tag = label ? `[${label}${len}]` : null;
+  const seen = m.seen ? `: ${m.seen}` : "";
+  const tag = label ? `[${label}${len}${seen}]` : null;
   return [tag, m.body].filter(Boolean).join(" ") || `[${m.type}]`;
 }
 

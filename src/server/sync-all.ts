@@ -19,7 +19,7 @@ import { syncWhoop } from "~/server/whoop/sync";
 
 /**
  * Every source in one pass, then the assistant: Pocket, WHOOP, GitHub and,
- * once a day, his WhatsApp. Once a week, the AI's new things to compare. Each
+ * every four hours, his WhatsApp. Once a week, the AI's new things to compare. Each
  * one is incremental and fails on its own, so a dead WHOOP token never stops
  * the transcripts, and the assistant writes with whatever did arrive. The
  * reminders he asked for go first: they cannot wait for a slow sweep.
@@ -44,7 +44,7 @@ async function syncAll() {
     sweep(),
     syncWhoopRecent(),
     syncGithubHourly(),
-    syncWhatsappDaily(),
+    syncWhatsappEvery4h(),
   ]);
   const assistant = await runAssistant().catch((err: unknown) => ({ error: String(err) }));
   const hypotheses = await proposeWeekly().catch((err: unknown) => ({ error: String(err) }));
@@ -76,16 +76,18 @@ async function interpretWeekly() {
 }
 
 /**
- * His WhatsApp once a day, on the first tick after midnight in Madrid:
- * yesterday is whole by then. A dead token is told to him that same night,
- * once a day until it is fixed.
+ * His WhatsApp every four hours (14-nov-2026; once a day before): today is
+ * read as it goes, and his partner's voice notes and photos are in before
+ * WhatsApp drops them. A dead token is told to him once a day until it is fixed.
  */
-async function syncWhatsappDaily(now = new Date()) {
+async function syncWhatsappEvery4h(now = new Date()) {
   if (!evolutionReady()) return { skipped: "Evolution not configured" };
   const state = await readSyncState("whatsapp");
-  if (state?.lastSweptAt && localDay(state.lastSweptAt) === localDay(now)) return { skipped: "read today already" };
+  const last = state?.lastSweptAt?.getTime() ?? 0;
+  if (now.getTime() - last < 4 * 3_600_000) return { skipped: "read less than four hours ago" };
   const report = await run("whatsapp", () => syncWhatsapp(now));
-  if (tokenDead(report.errors) && whatsappConfigured()) {
+  const toldToday = state?.lastSweptAt && localDay(state.lastSweptAt) === localDay(now) && tokenDead([state.lastError ?? ""]);
+  if (tokenDead(report.errors) && !toldToday && whatsappConfigured()) {
     const out = await sendNotice(TOKEN_DEAD, now);
     if (!out.ok) console.error(`[whatsapp] el aviso del token no salió: ${out.detail}`);
   }

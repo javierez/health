@@ -52,6 +52,8 @@ check("a reaction is not a message", toRow({ key: key("34600111222@s.whatsapp.ne
 check("a voice note in a transcript", lineText({ type: "audioMessage", body: null, seconds: 85 }), "[nota de voz 1:25]");
 check("with its transcript", lineText({ type: "audioMessage", body: "Llego tarde", seconds: 5 }), "[nota de voz 0:05] Llego tarde");
 check("text as is", lineText({ type: "conversation", body: "Vale", seconds: null }), "Vale");
+check("a photo says what it shows", lineText({ type: "imageMessage", body: "Mira", seconds: null, seen: "Dos cafés en una terraza." }), "[foto: Dos cafés en una terraza.] Mira");
+check("an album's photo too", lineText({ type: "associatedChildMessage", body: null, seconds: null, seen: "Una playa." }), "[foto: Una playa.]");
 check("an unknown type says so", lineText({ type: "pollCreationMessage", body: null, seconds: null }), "[pollCreationMessage]");
 
 check("a Spanish number, readable", phoneLabel("34600111222"), "+34 600 11 12 22");

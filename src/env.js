@@ -48,13 +48,15 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().url().optional(),
     /**
-     * His own WhatsApp, read once a day from the Evolution instance Vesta
+     * His own WhatsApp, read every four hours from the Evolution instance Vesta
      * keeps for his number (account 2, `vesta-sE8xd3mu24gi`). The key is that
      * instance's token, never Vesta's global one. Without them nothing is read.
      */
     EVOLUTION_API_URL: z.string().url().optional(),
     EVOLUTION_INSTANCE: z.string().optional(),
     EVOLUTION_API_KEY: z.string().optional(),
+    /** The chats whose every voice note and photo is read, as digits, comma separated (`followedChats`). */
+    WHATSAPP_FOLLOW: z.string().optional(),
     /**
      * Vesta's Twilio, for the code of «¿Olvidaste tu contraseña?» (the same
      * four names as in Vesta's .env.local). It goes to `WHATSAPP_TO`.
@@ -93,6 +95,7 @@ export const env = createEnv({
     EVOLUTION_API_URL: process.env.EVOLUTION_API_URL,
     EVOLUTION_INSTANCE: process.env.EVOLUTION_INSTANCE,
     EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY,
+    WHATSAPP_FOLLOW: process.env.WHATSAPP_FOLLOW,
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,

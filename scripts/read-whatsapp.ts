@@ -1,7 +1,7 @@
 /**
- * Reads the finished WhatsApp days not read yet with this `WA_VERSION`. The
- * daily sync reads only yesterday; this is the backlog, after the history
- * import or a prompt bump. Days under 20 messages are never read.
+ * Reads the WhatsApp days not read yet with this `WA_VERSION`, or grown since
+ * they were. The sync reads only the last three days; this is the backlog,
+ * after the history import or a prompt bump. Days under 20 messages are never read.
  *
  *   set -a && source .env.local && set +a && pnpm tsx scripts/read-whatsapp.ts            # dry: days and cost
  *   … scripts/read-whatsapp.ts --write                                                     # read them all

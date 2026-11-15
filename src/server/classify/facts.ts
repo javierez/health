@@ -87,6 +87,53 @@ export const FACT_FIELDS = {
   confidence: { type: "number", minimum: 0, maximum: 1 },
 } as const;
 
+/**
+ * What he tells or shows, beyond what a recording is read for: a meal food by
+ * food, his weight, the toilet, anything else he keeps. Shared by the chat
+ * (`~/server/agent/tools`) and the WhatsApp chats he follows
+ * (`~/server/evolution/told`).
+ */
+export const TOLD_FIELDS = {
+  kcal: { type: "number" },
+  protein_g: { type: "number" },
+  water_ml: { type: "number", description: "En una comida o bebida, los ml de agua que se bebe (sola o con gas): un vaso 250, una botella 500 si no dice otra." },
+  foods: {
+    type: "array",
+    description: "En una comida, cada alimento con sus gramos y lo que aporta. Lo que no lleve, sin poner.",
+    items: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        grams: { type: "number" },
+        kcal: { type: "number" },
+        protein_g: { type: "number" },
+        carbs_g: { type: "number" },
+        sugar_g: { type: "number" },
+        fiber_g: { type: "number" },
+        fat_g: { type: "number" },
+        sat_fat_g: { type: "number" },
+        alcohol_g: { type: "number" },
+        caffeine_mg: { type: "number" },
+        salt_g: { type: "number" },
+      },
+      required: ["name"],
+    },
+  },
+  weight_kg: { type: "number" },
+  body_fat_pct: { type: "number" },
+  toilet: { type: "string", enum: ["pee", "poo"] },
+  feel: { type: "string", enum: Object.keys(FEELS) },
+  bristol: { type: "number", minimum: 1, maximum: 7 },
+  duration_min: { type: "number", description: "En el baño: cuánto ha tardado, si lo dice." },
+  symptoms: { type: "array", items: { type: "string", enum: Object.keys(TOILET_SYMPTOMS) } },
+  tipo: { type: "string", description: "Qué es, en una o dos palabras, si no es comida, gimnasio, correr ni bici: Yoga, Natación, Meditar, Dolor de cabeza." },
+  categoria: { type: "string", description: "En other: una de las suyas de «Lo que apunta», con su nombre exacto, o una nueva corta." },
+  valor: { type: "number", description: "En other, la cifra si la hay: 6 (de 10), 2 (litros), 20 (minutos)." },
+  unidad: { type: "string", description: "La del valor: /10, L, min, veces." },
+  etiquetas: { type: "array", items: { type: "string" }, description: "En other, dos o tres palabras de detalle si las dice: sien, tras comer." },
+  estado: { type: "boolean", description: "En other, true si es algo que le pasa o cómo está (un dolor, el ánimo), no algo que hace." },
+} as const;
+
 const TOOL: Anthropic.Tool = {
   name: "record_facts",
   description: "Record the meals, training and medical facts about Javier in this recording.",

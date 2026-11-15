@@ -213,7 +213,7 @@ export async function buildContext(now: Date): Promise<string> {
     lines.push("- La banda va sin la suscripción de WHOOP y no detecta entrenos: solo cuentan los que él cuenta en el chat. Si no ha contado ninguno, no sabes si ha entrenado: nunca digas que lleva 0, pregúntaselo.");
   } else if (workouts.length === 0) lines.push("- Ninguno.");
 
-  lines.push("\nComidas, entrenos y peso de los 2 últimos días (oídos en las grabaciones o mandados al chat):");
+  lines.push("\nComidas, entrenos y peso de los 2 últimos días (oídos en las grabaciones, mandados al chat o contados por WhatsApp):");
   for (const f of recent) lines.push(`- [${f.id}] ${when(f.at)} ${f.summary}`);
   if (recent.length === 0) lines.push("- Nada oído.");
   const eaten = recent.filter((f) => f.kind === "meal" && f.day === localDay(now));
