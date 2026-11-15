@@ -7,6 +7,8 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { addMedical, archiveMedical } from "~/app/actions";
+import type { Labs } from "~/lib/labs";
+import { LabsCard } from "./labs-card";
 import type { DayRows, MedicalRow } from "~/server/queries/salud";
 
 const KINDS = [
@@ -57,7 +59,7 @@ function Entry({ e, onArchive }: { e: MedicalRow; onArchive: () => void }) {
 }
 
 /** His history: what is still to do on top, then each problem from newest to oldest. The assistant reads all of it. */
-export function MedicalTab({ entries, heard }: { entries: MedicalRow[]; heard: DayRows[] }) {
+export function MedicalTab({ entries, labs, heard }: { entries: MedicalRow[]; labs: Labs; heard: DayRows[] }) {
   const form = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -79,6 +81,8 @@ export function MedicalTab({ entries, heard }: { entries: MedicalRow[]; heard: D
           </ul>
         </section>
       ) : null}
+
+      <LabsCard labs={labs} />
 
       {topics.map(([topic, rows]) => (
         <section key={topic}>

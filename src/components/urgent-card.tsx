@@ -7,6 +7,7 @@ import { ChevronRight, Phone } from "lucide-react";
 import { MedicalTab } from "~/components/medical-tab";
 import { Button } from "~/components/ui/button";
 import { Modal } from "~/components/ui/modal";
+import type { Labs } from "~/lib/labs";
 import { phoneIn } from "~/lib/today-sections";
 import { cn } from "~/lib/utils";
 import type { DayRows, MedicalRow } from "~/server/queries/salud";
@@ -27,11 +28,13 @@ const isDone = (today: Today, p: PendingItem) => today.rows.some((r) => r.key ==
 export function UrgentCard({
   today,
   medical,
+  labs,
   heard,
   style,
 }: {
   today: Today;
   medical: MedicalRow[];
+  labs: Labs;
   heard: DayRows[];
   style?: CSSProperties;
 }) {
@@ -73,7 +76,7 @@ export function UrgentCard({
         ) : null}
       </Modal>
       <Modal open={history} onClose={() => setHistory(false)} title="Historial médico" className="w-[min(92vw,44rem)]">
-        <MedicalTab entries={medical} heard={heard} />
+        <MedicalTab entries={medical} labs={labs} heard={heard} />
       </Modal>
     </section>
   );

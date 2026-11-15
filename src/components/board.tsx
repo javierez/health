@@ -58,7 +58,7 @@ export function DayBrowser({ data }: { data: SaludData }) {
 
       {filter === "medical" ? (
         <Card className="p-4 animate-fade-in motion-reduce:animate-none">
-          <MedicalTab entries={data.medical} heard={data.heard} />
+          <MedicalTab entries={data.medical} labs={data.labs} heard={data.heard} />
         </Card>
       ) : (
         <>

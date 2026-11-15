@@ -1,11 +1,12 @@
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 
 import { db } from "~/db";
-import { facts, medical, whoopRecords } from "~/db/schema";
+import { facts, labResults, medical, whoopRecords } from "~/db/schema";
 import { env } from "~/env";
 import { formatSpan } from "~/lib/categories";
 import { addDays, dayTitle, hm, localClock, localDay } from "~/lib/day";
 import { GROUPS, type GroupKey } from "~/lib/day-groups";
+import { labsOf, type Labs } from "~/lib/labs";
 import { kindLabel } from "~/lib/taxonomy";
 import { sportName } from "~/lib/sports";
 import { needMinutes, type SleepRaw } from "~/server/assistant/context";
@@ -55,6 +56,8 @@ export interface DayCard {
 export interface SaludData {
   days: DayCard[];
   medical: MedicalRow[];
+  /** His blood tests, marker by marker. */
+  labs: Labs;
   heard: DayRows[];
   /** Does a tense day on WhatsApp cost him the next morning, and which topics come tense. */
   pattern: WaPattern;
@@ -132,7 +135,7 @@ export async function loadSalud(now = new Date()): Promise<SaludData> {
   // in the syncs the screen still shows the last real days instead of nothing.
   const since = new Date(now.getTime() - 120 * 86_400_000);
 
-  const [activities, factRows, whoop, code, file, chats, pattern] = await Promise.all([
+  const [activities, factRows, whoop, code, file, chats, pattern, labRows] = await Promise.all([
     listActivities({ limit: 3000 }),
     db.select().from(facts).where(gte(facts.at, since)).orderBy(desc(facts.at)),
     db
@@ -144,6 +147,7 @@ export async function loadSalud(now = new Date()): Promise<SaludData> {
     db.select().from(medical).where(eq(medical.active, true)).orderBy(desc(medical.onDay), desc(medical.createdAt)),
     whatsappDays(addDays(today, -60)),
     whatsappPattern(),
+    db.select().from(labResults),
   ]);
 
   const recoveryByDay = new Map(
@@ -303,6 +307,7 @@ export async function loadSalud(now = new Date()): Promise<SaludData> {
   return {
     days,
     medical: file.map((m) => ({ id: m.id, kind: m.kind, title: m.title, details: m.details, onDay: m.onDay, topic: m.topic })),
+    labs: labsOf(labRows),
     heard: heardDays,
     pattern,
   };

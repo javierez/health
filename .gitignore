@@ -8,3 +8,6 @@ next-env.d.ts
 .DS_Store
 .vercel
 .env.demo.local
+
+# His lab values: medical data, never on GitHub (~/Documents/Investigaciones/CLAUDE.md).
+scripts/_tmp-analiticas.ts

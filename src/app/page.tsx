@@ -80,7 +80,7 @@ async function Panel() {
         </Button>
         <Account />
       </header>
-      <UrgentCard today={today} medical={data.medical} heard={data.heard} style={{ animationDelay: "0.08s" }} />
+      <UrgentCard today={today} medical={data.medical} labs={data.labs} heard={data.heard} style={{ animationDelay: "0.08s" }} />
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
         {/* Left, what is done today (to do, food, skin); right, the week and training. On a phone one list, «Piel» last. */}
         <div className="contents lg:col-span-3 lg:block lg:space-y-4">

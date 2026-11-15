@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -515,6 +516,33 @@ export const medical = pgTable("medical", {
 });
 
 export type MedicalEntry = typeof medical.$inferSelect;
+
+/**
+ * His blood tests, one row per value per test (`drizzle/202611151400_analiticas.sql`):
+ * «TSH 2,1 mUI/L (0,27-4,2)» on one day. Read by `~/lib/labs`.
+ */
+export const labResults = pgTable(
+  "lab_results",
+  {
+    userId: owner(),
+    id: serial("id").primaryKey(),
+    /** `YYYY-MM-DD`, the day of the draw. */
+    day: text("day").notNull(),
+    /** The hospital or clinic that printed it. */
+    lab: text("lab").notNull(),
+    /** «Hemograma», «Bioquímica», «Hormonas»… */
+    panel: text("panel").notNull(),
+    marker: text("marker").notNull(),
+    value: doublePrecision("value"),
+    /** As printed, when it is not a plain number: «Negativo», «<0,6». */
+    shown: text("shown"),
+    unit: text("unit"),
+    low: doublePrecision("low"),
+    high: doublePrecision("high"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("lab_results_marker_idx").on(t.userId, t.day, t.marker)],
+);
 
 /**
  * Every message the assistant wrote, sent or not. `(kind, day)` is unique:
